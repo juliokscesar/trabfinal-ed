@@ -1,0 +1,8 @@
+*.exe
+*.out
+*.o
+*.bin
+
+.temp/
+.vscode/
+
