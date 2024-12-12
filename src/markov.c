@@ -53,14 +53,7 @@ lli markovIdState(const MarkovState* state, const int* stateVec) {
         return -1;
 
     for (size_t stateID=0; stateID < state->nStates; stateID++) {
-        bool match = true;
-        for (size_t i=0; i < state->order; i++) {
-            if (state->states[stateID][i] != stateVec[i]) {
-                match = false;
-                break;
-            }
-        }
-        if (match)
+        if (memcmp(stateVec, state->states[stateID], sizeof(int) * state->order) == 0)
             return (lli)stateID;
     }
 
