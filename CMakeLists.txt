@@ -18,13 +18,11 @@ set(SRC
         src/main.c
         src/markov.c
         src/utils.c
-        src/utils.h
 )
 
 set(HEADER
         src/markov.h
         src/typedefs.h
-        src/utils.c
         src/utils.h
 )
 

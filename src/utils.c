@@ -2,25 +2,31 @@
 
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 lli ifindSubsetIn(const int* arr, const size_t n, const size_t start, const int* subset, const size_t s) {
     if (!arr || !subset || s > n)
         return -1;
 
-    for (size_t arrI = start; arrI < n; arrI++) {
-        bool match = true;
-        // Compare array window with subset to see if match
-        for (size_t winI = 0; winI < s; winI++) {
-            if (arr[winI + arrI] != subset[winI]) {
-                match = false;
-                break; // stop window check if any difference
-            }
-        }
-        if (match)
-            return (lli)arrI;
+    for (size_t arrI = start; (arrI < n) && (arrI+s); arrI++) {
+        if (memcmp(arr+arrI, subset, s*sizeof(int)) == 0)
+            return arrI;
     }
 
     return -1;
+}
+
+uint icountSubsetIn(const int* arr, const size_t n, const int* subset, const size_t s) {
+    if (!arr || !subset || n < s)
+        return 0;
+
+    uint count = 0;
+    for (size_t arrI = 0; (arrI < n) && (arrI+s < n); arrI++) {
+        if (memcmp(arr+arrI, subset, s * sizeof(int)) == 0)
+            count++;
+    }
+
+    return count;
 }
 
 void combineRecursive(int* comb, const int* vals, const size_t n, const size_t len, size_t depth, int** combs, size_t* combIdx) {

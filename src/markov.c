@@ -116,7 +116,7 @@ void markovFreeTransMatrix(TransitionMatrix** m) {
     if (!m || !(*m))
         return;
 
-    // Don't free state because it can be shared
+    // Don't free state because it may be shared
 
     // Free probabilities
     for (size_t i = 0; i < (*m)->state->nStates; i++)
@@ -129,38 +129,36 @@ void markovFreeTransMatrix(TransitionMatrix** m) {
 }
 
 void markovFillProbabilities(TransitionMatrix* m, const int* data, const size_t n) {
-    if (!m || !data)
+    if (!m || !data || !m->state || !m->probs)
         return;
     if (m->state->order > (n-1))
         return;
 
-    // Look for occurences of every state in the data
+    // For every state size N, create a vector of N+1 size and count the occurrences of that vector
+    // since it will be the number of times that state transitioned to the (N+1) value
+    const size_t stateVecSize = m->state->order + 1;
+    int* stateVec = malloc(sizeof(int) * stateVecSize);
     for (size_t stateID = 0; stateID < m->state->nStates; stateID++) {
-        for (size_t dataI = 0; dataI < n; dataI++) {
-            // Get the starting index of the next occurrence of the state
-            size_t stateInData = ifindSubsetIn(data, n, dataI, m->state->states[stateID], m->state->order);
-            if (stateInData == -1)
-                break;
+        // copy first (order) values to statevec
+        memcpy(stateVec, m->state->states[stateID], sizeof(int)*m->state->order);
 
-            // If we got a match, update the next value count in the probablity matrix
-            int nextVal = data[stateInData+m->state->order];
-            lli valID = markovIdValState(m->state, nextVal);
-            if (valID == -1)
-                continue;
-            m->probs[stateID][valID]++;
-            dataI = stateInData;
+        // then, the last value will be a possible value for the transition (from m->state->values)
+        uint total = 0;
+        for (size_t valID = 0; valID < m->state->nVals; valID++) {
+            stateVec[stateVecSize-1] = m->state->vals[valID];
+            uint count = icountSubsetIn(data, n, stateVec, m->state->order+1);
+            m->probs[stateID][valID] = count;
+            total += count;
         }
 
-        // After counting, normalize the probabilities
-        double stateCount = 0.0;
-        for (size_t i = 0; i < m->state->nVals; i++) {
-            stateCount += m->probs[stateID][i];
-        }
-        if (stateCount > 0.0) {
-            for (size_t i = 0; i < m->state->nVals; i++)
-                m->probs[stateID][i] /= stateCount;
+        // finally, normalize the probabilities
+        if (total > 0) {
+            for (size_t valID = 0; valID < m->state->nVals; valID++)
+                m->probs[stateID][valID] /= total;
         }
     }
+
+    free(stateVec);
 }
 
 void markovPrintTransMatrix(const TransitionMatrix* m) {
@@ -196,8 +194,10 @@ int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, 
         lastState[i-n+m->state->order] = data[i];
 
     lli stateID = markovIdState(m->state, lastState);
-    if (stateID == -1)
+    if (stateID == -1) {
+        free(lastState);
         return INT_MAX;
+    }
 
     // Update 'lastState' with every step
     int prediction = m->state->vals[0];
