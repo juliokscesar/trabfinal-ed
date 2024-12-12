@@ -1,6 +1,18 @@
 # Trabalho Final - Estrutura de Dados 202402
 Trabalho final realizado para a disciplina de Estrutura de Dados.
 
+## Como compilar e rodar
+Este projeto utiliza CMake na configuração da compilação, e recomenda-se que se use Linux.
+
+Basta clonar este projeto e rodar o script `build.sh`, que irá criar uma pasta chamada 'build' com um executável 'proj'. Comandos completos:
+````bash
+git clone https://github.com/juliokscesar/trabfinal-ed.git
+cd trabfinal-ed
+chmod +X ./build.sh
+./build.sh
+./build/proj
+````
+
 ## Descrição
 Este projeto tem como objetivo gerar um modelo simples e eficiente na análise e previsão de séries binárias temporais, aproveitando-se do desempenho da linguagem C para garantir uma implementação otimizada.
 O Grafo é a estrutura principal deste projeto, pois proporciona uma implementação intuitiva e prática para manusear conexões, pesos e as relações entre diferentes *neurônios* (nós).
