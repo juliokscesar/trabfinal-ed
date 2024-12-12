@@ -7,21 +7,47 @@
 #include <math.h>
 
 #include "utils.h"
+#include "logging.h"
 
 MarkovState* markovBuildStates(const uint order, const int* vals, size_t nVals) {
     MarkovState* state = malloc(sizeof(MarkovState));
+    if (!state) {
+        LOG_ERROR("malloc failed for MarkovState*");
+        return NULL;
+    }
     state->order = order;
 
     // Initialize the values alphabet (will be mostly 0,1)
     state->nVals = nVals;
     state->vals = malloc(sizeof(int) * nVals);
+    if (!state->vals) {
+        LOG_ERROR("malloc failed for MarkovState values (state->vals)");
+        free(state);
+        return NULL;
+    }
     memcpy(state->vals, vals, nVals * sizeof(int));
 
     // Allocate memory for states
     state->nStates = (size_t)pow((double)nVals, (double)order);
-    state->states = calloc(state->nStates, sizeof(int*));
-    for (size_t i = 0; i < state->nStates; i++)
+    state->states = malloc(state->nStates * sizeof(int*));
+    if (!state->states) {
+        LOG_ERROR("malloc failed for MarkovState states combinations (state->states)");
+        free(state->vals);
+        free(state);
+        return NULL;
+    }
+    for (size_t i = 0; i < state->nStates; i++) {
         state->states[i] = calloc(order, sizeof(int));
+        if (!state->states[i]) {
+            LOG_ERROR("calloc failed for one of the state in MarkovState state->states");
+            for (size_t j = 0; j < i; j++)
+                free(state->states[j]);
+            free(state->states);
+            free(state->vals);
+            free(state);
+            return NULL;
+        }
+    }
 
     // Initialize states
     // They are the N^order combinations of the values
@@ -49,7 +75,7 @@ void markovFreeState(MarkovState** state) {
 }
 
 lli markovIdState(const MarkovState* state, const int* stateVec) {
-    if (!state || !stateVec)
+    if (!state || !stateVec || !state->states)
         return -1;
 
     for (size_t stateID=0; stateID < state->nStates; stateID++) {
@@ -72,16 +98,33 @@ lli markovIdValState(const MarkovState* state, const int val) {
     return -1;
 }
 
-
 TransitionMatrix* markovInitTransMatrix(const double** probs, MarkovState* state) {
     if (!probs || !state)
         return NULL;
 
     TransitionMatrix* m = malloc(sizeof(TransitionMatrix));
+    if (!m) {
+        LOG_ERROR("malloc failed for TransitionMatrix* m");
+        return NULL;
+    }
+
     m->state = state;
-    m->probs = calloc(state->nStates, sizeof(double*));
+    m->probs = malloc(state->nStates * sizeof(double*));
+    if (!m->probs) {
+        LOG_ERROR("malloc failed for probabilities matrix m->probs");
+        free(m);
+        return NULL;
+    }
     for (size_t i = 0; i < state->nStates; i++) {
-        m->probs[i] = calloc(state->nVals, sizeof(double));
+        m->probs[i] = malloc(state->nVals * sizeof(double));
+        if (!m->probs[i]) {
+            LOG_ERROR("malloc failed for one of probabilities rows");
+            for (size_t j = 0; j < i; j++)
+                free(m->probs[j]);
+            free(m->probs);
+            free(m);
+            return NULL;
+        }
         memcpy(m->probs[i], probs[i], state->nVals * sizeof(double));
     }
 
@@ -93,12 +136,30 @@ TransitionMatrix* markovBuildTransMatrix(const int* data, const size_t n, Markov
         return NULL;
 
     TransitionMatrix* m = malloc(sizeof(TransitionMatrix));
+    if (!m) {
+        LOG_ERROR("malloc failed for TransitionMatrix* m");
+        return NULL;
+    }
     m->state = state;
 
     // The probability matrix will have dimension N_States X N_Values
-    m->probs = calloc(state->nStates, sizeof(double*));
-    for (size_t i = 0; i < state->nStates; i++)
-        m->probs[i] = calloc(state->nVals, sizeof(double));
+    m->probs = malloc(state->nStates * sizeof(double*));
+    if (!m->probs) {
+        LOG_ERROR("malloc failed for probabilities matrix m->probs");
+        free(m);
+        return NULL;
+    }
+    for (size_t i = 0; i < state->nStates; i++) {
+        m->probs[i] = malloc(state->nVals * sizeof(double));
+        if (!m->probs[i]) {
+            LOG_ERROR("malloc failed for one of probabilities rows");
+            for (size_t j = 0; j < i; j++)
+                free(m->probs[j]);
+            free(m->probs);
+            free(m);
+            return NULL;
+        }
+    }
 
     markovFillProbabilities(m, data, n);
 
@@ -106,7 +167,7 @@ TransitionMatrix* markovBuildTransMatrix(const int* data, const size_t n, Markov
 }
 
 void markovFreeTransMatrix(TransitionMatrix** m) {
-    if (!m || !(*m))
+    if (!m || !(*m) || !(*m)->probs)
         return;
 
     // Don't free state because it may be shared
@@ -139,7 +200,7 @@ void markovFillProbabilities(TransitionMatrix* m, const int* data, const size_t 
         uint total = 0;
         for (size_t valID = 0; valID < m->state->nVals; valID++) {
             stateVec[stateVecSize-1] = m->state->vals[valID];
-            uint count = icountSubsetIn(data, n, stateVec, m->state->order+1);
+            uint count = icountSubsetIn(data, n, stateVec, stateVecSize);
             m->probs[stateID][valID] = count;
             total += count;
         }
@@ -175,7 +236,7 @@ void markovPrintTransMatrix(const TransitionMatrix* m) {
     }
 }
 
-int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, const size_t n) {
+int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, const size_t n, double* outConf) {
     if (!m || !data || !m->state)
         return INT_MAX;
     if (m->state->order > (n-1))
@@ -183,6 +244,10 @@ int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, 
 
     // The last state will be the slice [n-order:]
     int* lastState = malloc(sizeof(int)*m->state->order);
+    if (!lastState) {
+        LOG_ERROR("malloc failed for vector of last state");
+        return INT_MAX;
+    }
     for (size_t i = n-m->state->order; i < n; i++)
         lastState[i-n+m->state->order] = data[i];
 
@@ -206,6 +271,7 @@ int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, 
             double high = m->probs[stateID][v];
             if (r >= low && r < high) {
                 prediction = m->state->vals[v];
+                *outConf = high;
                 break;
             }
             low = high;

@@ -18,12 +18,16 @@ set(SRC
         src/main.c
         src/markov.c
         src/utils.c
+        src/logging.c
+        src/markovgraph.c
 )
 
 set(HEADER
         src/markov.h
         src/typedefs.h
         src/utils.h
+        src/markovgraph.h
+        src/logging.h
 )
 
 add_executable(proj ${SRC} ${HEADER})

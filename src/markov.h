@@ -48,7 +48,7 @@ void markovPrintTransMatrix(const TransitionMatrix* m);
 
 // Predicts the next value after 'steps' time steps based on the probabilities in the TransitionMatrix
 // given the last state
-int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, const size_t n);
+int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, const size_t n, double* outConf);
 
 
 #endif // _MARKOV_H
