@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(TrabFinalED)
 
-set(CMAKE_EXPORT_COMPILE_COMMADS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (NOT CMAKE_BUILD_TYPE)
    set(CMAKE_BUILD_TYPE Debug)
@@ -12,10 +12,24 @@ if (NOT MSVC)
    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 endif()
 
+include_directories(${PROJECT_SOURCE_DIR}/src/)
+
 set(SRC
-   src/main.c
+        src/main.c
+        src/markov.c
+        src/utils.c
+        src/utils.h
 )
 
-add_executable(proj ${SRC})
-target_include_directories(proj PUBLIC src)
+set(HEADER
+        src/markov.h
+        src/typedefs.h
+        src/utils.c
+        src/utils.h
+)
 
+add_executable(proj ${SRC} ${HEADER})
+
+target_link_libraries(proj PUBLIC
+   -lm
+)
