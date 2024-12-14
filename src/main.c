@@ -2,14 +2,13 @@
 #include <stdlib.h>
 
 #include "markov.h"
-#include "logging.h"
 
 int main(void) {
     /// MARKOV TRANSITION MATRIX TEST
     printf("\n--------------------------- INIT TEST RUN ---------------------------\n");
     srand(42);
 
-    const int data[] = {1,2,21,16,1,2,21,16,1,2,21,16};
+    const int data[] = {0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,0,0,1,0,0,1,0,0,1,0,0,1};
     const size_t n = sizeof(data) / sizeof(data[0]);
 
     // Build MarkovState with two values {0,1}
