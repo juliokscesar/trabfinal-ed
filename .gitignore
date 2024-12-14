@@ -2,6 +2,7 @@
 *.out
 *.o
 *.bin
+*.dat
 
 .temp/
 .vscode/

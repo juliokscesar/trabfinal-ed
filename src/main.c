@@ -2,51 +2,80 @@
 #include <stdlib.h>
 
 #include "markov.h"
+#include "logging.h"
+#include "utils.h"
 
 int main(void) {
     /// MARKOV TRANSITION MATRIX TEST
     printf("\n--------------------------- INIT TEST RUN ---------------------------\n");
     srand(42);
 
-    const int data[] = {0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,0,0,1,0,0,1,0,0,1,0,0,1};
-    const size_t n = sizeof(data) / sizeof(data[0]);
+    size_t n = 0;
+    int* data = loadData_i("test.dat", &n);
+    if (!data) {
+        LOG_ERROR("Unable to load test.dat");
+        return -1;
+    }
+
+    int *train, *test;
+    size_t trainSize, testSize;
+    splitTrainTest_i(data, n, &train, &test, &trainSize, &testSize, 0.3);
+    if (!train || !test) {
+        LOG_ERROR("Couldn't split train and test");
+        free(data);
+        return -1;
+    }
+
+    printf("Data N = %ld\n", n);
+    printf("Training set (%ld): ", trainSize);
+    printArr_i(train, trainSize);
+    printf("Test set (%ld): ", testSize);
+    printArr_i(test, testSize);
 
     // Build MarkovState with two values {0,1}
-    uint order = 3;
+    uint order = 17;
     int vals[] = {0,1};
     const size_t nVals = sizeof(vals) / sizeof(vals[0]);
     MarkovState* state = markovBuildStates(order, vals, nVals);
+    printf("Using order %u, number of states: %ld\n", order, state->nStates);
 
-    // Build markov transition matrix given the states
-    TransitionMatrix* tm = markovBuildTransMatrix(data, n, state);
-    markovPrintTransMatrix(tm);
+    // Build markov transition matrix given the states and the training set
+    TransitionMatrix* tm = markovBuildTransMatrix(train, trainSize, state);
+    //markovPrintTransMatrix(tm);
 
-    printf("DATA: ");
-    for (size_t i = 0; i < n; i++)
-        printf("%d, ", data[i]);
-    int steps[10] = {0};
-    double conf[10] = {0};
-    const int s = sizeof(steps)/sizeof(steps[0]);
-    printf("\nNext %d steps: ", s);
-    for (int i = 0; i < s; i++) {
-        steps[i] = markovPredict(tm, i+1, data, n, &conf[i]);
-    }
+    printf("\nTest set validation:\n");
+    printf("Test set (truth) (%ld): ", testSize);
+    printArr_i(test, testSize);
+
+    // predict next (testSize)
+    int* predicted = malloc(sizeof(int) * testSize);
+    markovPredict(tm, testSize, train, trainSize, predicted, NULL);
+
+    printf("Predicted: ");
+    printArr_i(predicted, testSize);
+
+    double acc = calcAccuracy(test, predicted, testSize);
+    printf("Accuracy: %lf\n", acc);
 
     // Print previsao e confidence
-    for (int i = 0; i < s; i++) {
-        printf("%d(%lf) ", steps[i], conf[i]);
-    }
-    double prop = conf[0];
-    printf("\nAcc confidence:  ");
-    for (int i = 0; i < s; i++) {
-        if (i!=0)
-            prop *= conf[i];
-        printf("%lf;   ", prop);
-    }
-    putchar('\n');
+    // for (int i = 0; i < s; i++) {
+    //     printf("%d(%lf) ", steps[i], conf[i]);
+    // }
+    // double prop = conf[0];
+    // printf("\nAcc confidence:  ");
+    // for (int i = 0; i < s; i++) {
+    //     if (i!=0)
+    //         prop *= conf[i];
+    //     printf("%lf;   ", prop);
+    // }
+    // putchar('\n');
     // ------------------------------------
 
     markovFreeTransMatrix(&tm);
     markovFreeState(&state);
+    free(predicted);
+    free(train);
+    free(test);
+    free(data);
     return 0;
 }

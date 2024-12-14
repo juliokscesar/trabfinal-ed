@@ -52,7 +52,7 @@ MarkovState* markovBuildStates(const uint order, const int* vals, size_t nVals) 
     // Initialize states
     // They are the N^order combinations of the values
     size_t comb = 0;
-    ibuildCombinations(vals, nVals, state->order, state->states, &comb);
+    buildCombinations_i(vals, nVals, state->order, state->states, &comb);
 
     return state;
 }
@@ -200,7 +200,7 @@ void markovFillProbabilities(TransitionMatrix* m, const int* data, const size_t 
         uint total = 0;
         for (size_t valID = 0; valID < m->state->nVals; valID++) {
             stateVec[stateVecSize-1] = m->state->vals[valID];
-            uint count = icountSubsetIn(data, n, stateVec, stateVecSize);
+            uint count = countSubsetIn_i(data, n, stateVec, stateVecSize);
             m->probs[stateID][valID] = count;
             total += count;
         }
@@ -236,17 +236,17 @@ void markovPrintTransMatrix(const TransitionMatrix* m) {
     }
 }
 
-int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, const size_t n, double* outConf) {
-    if (!m || !data || !m->state)
-        return INT_MAX;
+void markovPredict(const TransitionMatrix* m, const uint steps, const int* data, const size_t n, int* predOut, double* confOut) {
+    if (!m || !data || !m->state || !predOut)
+        return;
     if (m->state->order > (n-1))
-        return INT_MAX;
+        return;
 
     // The last state will be the slice [n-order:]
     int* lastState = malloc(sizeof(int)*m->state->order);
     if (!lastState) {
         LOG_ERROR("malloc failed for vector of last state");
-        return INT_MAX;
+        return;
     }
     for (size_t i = n-m->state->order; i < n; i++)
         lastState[i-n+m->state->order] = data[i];
@@ -254,7 +254,7 @@ int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, 
     lli stateID = markovIdState(m->state, lastState);
     if (stateID == -1) {
         free(lastState);
-        return INT_MAX;
+        return;
     }
 
     // Update 'lastState' with every step
@@ -263,27 +263,35 @@ int markovPredict(const TransitionMatrix* m, const uint steps, const int* data, 
         // predict the next value with the given state
         // to do that, generate random number between 0 and 1
         // then the next value will have the probability between p(s) <= r < p(s+1)
-        double r = drand01();
+        double r = rand01_d();
         stateID = markovIdState(m->state, lastState);
 
-        double low = 0.0;
+        double cumProb = 0.0;
         for (size_t v = 0; v < m->state->nVals; v++) {
-            double high = m->probs[stateID][v];
-            if (r >= low && r < high) {
+            cumProb += m->probs[stateID][v];
+            if (r <= cumProb) {
                 prediction = m->state->vals[v];
-                *outConf = high;
+                if (confOut)
+                    confOut[i] = cumProb;
                 break;
             }
-            low = high;
         }
 
         // Then update the last state to include this new value
         for (size_t j = 0; j < m->state->order-1; j++)
             lastState[j] = lastState[j+1];
         lastState[m->state->order - 1] = prediction;
+        predOut[i] = prediction;
     }
 
     free(lastState);
+}
 
-    return prediction;
+int markovPredictNext(const TransitionMatrix* m, const int* data, const size_t n) {
+    if (!m || !data)
+        return INT_MAX;
+
+    int steps[1];
+    markovPredict(m, 1, data, n, steps, NULL);
+    return steps[0];
 }
