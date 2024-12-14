@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "logging.h"
+#include "utils.h"
 
 /* ----------------------------- MATRIX NODE ----------------------------- */
 MatrixNode* mxNodeInit(const size_t id, TransitionMatrix* matrix) {
@@ -72,7 +73,7 @@ void mkNetFreeInput(InputNode** node) {
     *node = NULL;
 }
 
-void mkNetSetInputData(InputNode* node, int* data, size_t n) {
+void mkNetSetInputData(InputNode* node, const int* data, size_t n) {
     if (!node || !data)
         return;
 
@@ -80,6 +81,7 @@ void mkNetSetInputData(InputNode* node, int* data, size_t n) {
         free(node->data);
     node->data = malloc(sizeof(int) * n);
     memcpy(node->data, data, sizeof(int) * n);
+    node->n = n;
 }
 
 InputEdge* mkNetInitInEdge(InputNode* orig, MatrixNode* dest, double errFac, int(* errFunc)(size_t, int, double)) {
@@ -134,6 +136,8 @@ void mkNetFreeOutput(OutputNode** node) {
 
     if ((*node)->probabilities)
         free((*node)->probabilities);
+    if ((*node)->vals)
+        free((*node)->vals);
     free(*node);
     *node = NULL;
 }
@@ -166,7 +170,7 @@ lli mkNetOutIdVal(OutputNode* node, int val) {
     if (!node)
         return -1;
 
-    for (lli i = 0; i < node->nVals; val++) {
+    for (lli i = 0; i < node->nVals; i++) {
         if (node->vals[i] == val)
             return i;
     }
@@ -223,7 +227,8 @@ void mkNetFree(MarkovNetwork** net) {
                 mkNetFreeOutEdge(&(*net)->output[i]);
         }
     }
-
+    free((*net)->input);
+    free((*net)->output);
     free(*net);
     *net = NULL;
 }
@@ -247,6 +252,7 @@ void mkNetTrain(MarkovNetwork* net, int* train, const size_t trainSize, const in
 
     // Train initial matrices
     mkNetSetInputData(net->start, train, trainSize);
+    printArr_i(net->start->data, net->start->n);
     mkNetInitMatrices(net);
 
     // Go through each value of the 'valid' set
@@ -267,6 +273,9 @@ void mkNetTrain(MarkovNetwork* net, int* train, const size_t trainSize, const in
     // normalize the weights at the end
     for (size_t i = 0; i < net->nMatNodes; i++)
         net->output[i]->weight /= weightSum;
+
+    // then update data to include only the last state from valid, otherwise it will have old data (from train) and not from valid
+    mkNetSetInputData(net->start, &valid[validSize - net->markovOrder], net->markovOrder);
 }
 
 void mkNetInitMatrices(MarkovNetwork* net) {
@@ -281,14 +290,11 @@ void mkNetInitMatrices(MarkovNetwork* net) {
     for (size_t i = 0; i < net->nMatNodes; i++) {
         const InputEdge* inEdge = net->input[i];
         // apply error if any
-        bool useCopy = false;
         if (inEdge->errFac > 0.0) {
             for (size_t j = 0; j < net->start->n; j++)
                 trainCopy[j] = inEdge->errFunc(inEdge->dest->id, net->start->data[j], inEdge->errFac);
-            useCopy = true;
-        }
-        if (useCopy)
             markovFillProbabilities(inEdge->dest->matrix, trainCopy, net->start->n);
+        }
         else
             markovFillProbabilities(inEdge->dest->matrix, net->start->data, net->start->n);
     }
@@ -331,14 +337,14 @@ void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* 
     for (size_t i = 0; i < steps; i++) {
         // Get every node's answer
         for (size_t o = 0; o < net->nMatNodes; o++) {
-            int pred = markovPredictNext(net->output[i]->orig->matrix, lastState, net->markovOrder);
-            lli valid = mkNetOutIdVal(net->output[i]->dest, pred);
-            if (valid == -1) {
+            int pred = markovPredictNext(net->output[o]->orig->matrix, lastState, net->markovOrder);
+            lli valID = mkNetOutIdVal(net->output[o]->dest, pred);
+            if (valID == -1) {
                 LOG_ERROR("Unable to identify value in mkNetPredict.");
-                fprintf(stderr, "pred=%d, valid=%ld\n", pred, valid);
+                fprintf(stderr, "pred=%d, valid=%ld\n", pred, valID);
             }
             else
-                net->end->probabilities[valid] += net->output[i]->weight;
+                net->end->probabilities[valID] += net->output[o]->weight;
         }
 
         // Chose prediction by argmax
@@ -353,12 +359,68 @@ void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* 
         for (size_t s = 0; s < (net->markovOrder-1); s++)
             lastState[s] = lastState[s+1];
         lastState[net->markovOrder-1] = prediction;
+
         predOut[i] = prediction;
+        if (confOut)
+            confOut[i] = maxProb;
+        // reset values
         prediction = INT_MIN;
+        maxProb = 0.0;
+        memset(net->end->probabilities, 0, sizeof(double) * net->end->nVals);
     }
 
     free(lastState);
 }
 
+void mkNetExport(const MarkovNetwork* net, const char* file) {
+    if (!net || !file)
+        return;
+
+    FILE* out = fopen(file, "w");
+    if (!out) {
+        LOG_ERROR("Unable to open file to export markov network");
+        return;
+    }
+
+    fprintf(out, "digraph MarkovNetwork {\n");
+    fprintf(out, "    rankdir=LR;\n");  // Left-to-right layout
+
+    // Print Input Node
+    fprintf(out, "    \"Input\" [shape=ellipse, label=\"Input\\n(state vector)\"];\n");
+
+    // Print Matrix Nodes
+    for (size_t i = 0; i < net->nMatNodes; i++) {
+        fprintf(out, "    \"MatrixNode_%zu\" [shape=box, label=\"MatrixNode %zu\\n(Transition Matrix)\"];\n", i, i);
+    }
+
+    // Print Output Node
+    fprintf(out, "    \"Output\" [shape=ellipse, label=\"Output\\n(Final Probabilities)\"];\n");
+
+    // Print InputEdges
+    for (size_t i = 0; i < net->nMatNodes; i++) {
+        fprintf(out, "    \"Input\" -> \"MatrixNode_%zu\" [label=\"errorFactor=%.2f\"];\n",
+                i, net->input[i]->errFac);
+    }
+
+    // Print OutputEdges
+    for (size_t i = 0; i < net->nMatNodes; i++) {
+        fprintf(out, "    \"MatrixNode_%zu\" -> \"Output\" [label=\"weight=%.2f\"];\n",
+                i, net->output[i]->weight);
+    }
+
+    fprintf(out, "}\n");
+    fclose(out);
+
+    LOG_INFO("Markov Network exported to file:");
+    fprintf(stderr, "%s\n", file);
+}
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------- USEFUL ERROR FUNCTIONS -------------------------- */
+int randomBinarySwap(size_t nodeId, int dataVal, double errFactor) {
+    double r = rand01_d();
+    if (r <= errFactor)
+        return 1 - dataVal;
+    return dataVal;
+}
+/* ---------------------------------------------------------------------------- */

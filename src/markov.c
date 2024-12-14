@@ -249,7 +249,7 @@ void markovPrintTransMatrix(const TransitionMatrix* m) {
 void markovPredict(const TransitionMatrix* m, const uint steps, const int* data, const size_t n, int* predOut, double* confOut) {
     if (!m || !data || !m->state || !predOut)
         return;
-    if (m->state->order > (n-1))
+    if (m->state->order > n)
         return;
 
     // The last state will be the slice [n-order:]
@@ -260,9 +260,12 @@ void markovPredict(const TransitionMatrix* m, const uint steps, const int* data,
     }
     for (size_t i = n-m->state->order; i < n; i++)
         lastState[i-n+m->state->order] = data[i];
+    memcpy(lastState, data + n - m->state->order, sizeof(int) * m->state->order);
 
     lli stateID = markovIdState(m->state, lastState);
     if (stateID == -1) {
+        LOG_ERROR("Unable to identiy id by value: ");
+        printf("%ld\n", stateID);
         free(lastState);
         return;
     }
@@ -301,7 +304,23 @@ int markovPredictNext(const TransitionMatrix* m, const int* data, const size_t n
     if (!m || !data)
         return INT_MAX;
 
-    int steps[1];
-    markovPredict(m, 1, data, n, steps, NULL);
-    return steps[0];
+    int prediction = INT_MAX;
+    lli stateID = markovIdState(m->state, data + n - m->state->order);
+    if (stateID == -1) {
+        LOG_ERROR("Unable to identify state");
+        printf("ID: %ld, State: ", stateID);
+        printArr_i(data+n-m->state->order, m->state->order);
+    }
+
+    double r = rand01_d();
+    double cumProb = 0.0;
+    for (size_t v = 0; v < m->state->nVals; v++) {
+        cumProb += m->probs[stateID][v];
+        if (r <= cumProb) {
+            prediction = m->state->vals[v];
+            break;
+        }
+    }
+
+    return prediction;
 }

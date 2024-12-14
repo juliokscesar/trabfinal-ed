@@ -27,12 +27,12 @@ typedef struct {
    MatrixNode* dest;
    double errFac;
    // errorFunc must be a function to take as input (dest->id, data[i], errorFactor) and return the altered i
-   int (errFunc*)(size_t,int,double);
+   int (*errFunc)(size_t,int,double);
 } InputEdge;
 
 InputNode* mkNetInitInput(const size_t id, const int* data, const size_t n);
 void mkNetFreeInput(InputNode** node);
-void mkNetSetInputData(InputNode* node, int* data, size_t n);
+void mkNetSetInputData(InputNode* node, const int* data, size_t n);
 InputEdge* mkNetInitInEdge(InputNode* orig, MatrixNode* dest, double errFac, int (*errFunc)(size_t,int,double));
 void mkNetFreeInEdge(InputEdge** edge);
 
@@ -81,18 +81,23 @@ typedef struct {
 } MarkovNetwork;
 
 MarkovNetwork* mkNetInit(MarkovState* state, const size_t nNodes, const double* errFactors, int (*errFunc)(size_t,int,double));
-void mkNetFree(MarkovNetwork* net);
-void mkNetMatrixNodes(MarkovNetwork** net, MatrixNode** out);
+void mkNetFree(MarkovNetwork** net);
+void mkNetMatrixNodes(MarkovNetwork* net, MatrixNode** out);
 
-void mkNetTrain(MarkovNetwork* net, const int* train, const size_t trainSize, const int* valid, const size_t validSize, const double lr);
+void mkNetTrain(MarkovNetwork* net, int* train, const size_t trainSize, const int* valid, const size_t validSize, const double lr);
 
 // Init transition matrices and apply their corresponding random error in the data
 void mkNetInitMatrices(MarkovNetwork* net);
 
 void mkNetUpdateWeights(MarkovNetwork* net, const double lr, const size_t id, bool correct);
-void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut);
+void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* confOut);
 
+// Export Network Graph to DOT format (graph visualization tool)
 void mkNetExport(const MarkovNetwork* net, const char* file);
 /* -------------------------------------------------------------------------- */
+
+/* -------------------------- USEFUL ERROR FUNCTIONS -------------------------- */
+int randomBinarySwap(size_t nodeId, int dataVal, double errFactor);
+/* ---------------------------------------------------------------------------- */
 
 #endif //MARKOVNETWORK_H

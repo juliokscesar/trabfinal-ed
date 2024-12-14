@@ -146,7 +146,7 @@ void splitTrainValTest_i(const int* data, const size_t n, int** trainOut, int** 
     if (!data || !trainOut || !testOut)
         return;
 
-    if (fabs(1.0 - (valRatio + testRatio)) > 1e-4)
+    if (fabs(1.0 - (valRatio + testRatio)) < 1e-4)
         return;
 
     *valSizeOut = n * valRatio;

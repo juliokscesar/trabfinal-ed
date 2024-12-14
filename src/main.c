@@ -4,6 +4,7 @@
 #include "markov.h"
 #include "logging.h"
 #include "markovgraph.h"
+#include "markovnetwork.h"
 #include "utils.h"
 
 int main(int argc, char** argv) {
@@ -38,7 +39,7 @@ int main(int argc, char** argv) {
     printArr_i(test, testSize);
 
     // Build MarkovState with two values {0,1}
-    uint order = 6;
+    uint order = 3;
     int vals[] = {0,1};
     const size_t nVals = sizeof(vals) / sizeof(vals[0]);
     MarkovState* state = markovBuildStates(order, vals, nVals);
@@ -46,7 +47,7 @@ int main(int argc, char** argv) {
 
     // Build markov transition matrix given the states and the training set
     TransitionMatrix* tm = markovBuildTransMatrix(train, trainSize, state);
-    //markovPrintTransMatrix(tm);
+    markovPrintTransMatrix(tm);
 
     printf("\nTest set validation:\n");
     printf("Test set (truth) (%ld): ", testSize);
@@ -84,10 +85,60 @@ int main(int argc, char** argv) {
 
     mkGraphFree(&graph);
     markovFreeTransMatrix(&tm);
+    free(predicted);
+    free(train);
+    free(test);
+
+    // NETWORK TEST
+    printf("\n____________________________________________________\n");
+    printf("NETWORK TESTING\n");
+    printf("____________________________________________________\n");
+
+    int* val;
+    size_t trainsz, valsz, testsz;
+    splitTrainValTest_i(data, n, &train, &val, &test, &trainsz, &valsz, &testsz, 0.4, 0.1);
+    if (!train || !val || !test) {
+        LOG_ERROR("Couldn't split train, val, test");
+        return -1;
+    }
+    printf("Train set (%zu): ", trainsz);
+    printArr_i(train,trainsz);
+    printf("Valid set (%zu): ", valsz);
+    printArr_i(val, valsz);
+    printf("Test set (%zu): ", testsz);
+    printArr_i(test, testsz);
+
+    const size_t nNetNodes = 30;
+    const double lr = 0.001;
+    double* errorFactor = malloc(sizeof(double) * nNetNodes);
+    for (size_t i = 0; i < nNetNodes; i++)
+        errorFactor[i] = 0.03 * (double)i;
+
+    MarkovNetwork* net = mkNetInit(state, nNetNodes, errorFactor, randomBinarySwap);
+    mkNetTrain(net, train, trainsz, val, valsz, lr);
+    LOG_INFO("Finished training network");
+
+    predicted = malloc(sizeof(int) * testsz);
+    mkNetPredict(net, testsz, predicted, NULL);
+
+    printf("\nTest set validation:\n");
+    printf("Test set (truth) (%ld): ", testsz);
+    printArr_i(test, testsz);
+    printf("Predicted: ");
+    printArr_i(predicted, testsz);
+
+    acc = calcAccuracy(test, predicted, testsz);
+    printf("Accuracy: %lf\n", acc);
+
+    mkNetExport(net, "network.dot");
+
+    mkNetFree(&net);
     markovFreeState(&state);
     free(predicted);
     free(train);
     free(test);
+    free(val);
+    free(errorFactor);
     free(data);
     return 0;
 }

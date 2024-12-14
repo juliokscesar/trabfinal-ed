@@ -64,7 +64,7 @@ MarkovGraphEdge* mkGraphAddEdge(MarkovGraph* graph, MarkovNode* orig, MarkovNode
 void mkGraphNodes(const MarkovGraph* graph, MarkovNode** outNodes);
 void mkGraphEdges(const MarkovGraph* graph, MarkovGraphEdge** outEdges);
 
-// Export graph to DOT format (graph visual tool)
+// Export graph to DOT format (graph visualization tool)
 void mkGraphExport(const MarkovGraph* graph, const char* file);
 /* ------------------------------------------------------------------------ */
 
