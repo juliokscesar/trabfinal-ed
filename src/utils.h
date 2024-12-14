@@ -13,6 +13,7 @@ double rand01_d();
 int* loadData_i(const char* file, size_t* outN);
 void saveData_i(const int* data, size_t n, const char* file);
 void splitTrainTest_i(const int* data, const size_t n, int** trainOut, int** testOut, size_t* trainSizeOut, size_t* testSizeOut, const double testRatio);
+void splitTrainValTest_i(const int* data, const size_t n, int** trainOut, int** valOut, int** testOut, size_t* trainSizeOut, size_t* valSizeOut, size_t* testSizeOut, const double valRatio, const double testRatio);
 
 double calcAccuracy(const int* truth, const int* predicted, const size_t n);
 

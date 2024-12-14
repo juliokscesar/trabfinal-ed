@@ -28,7 +28,6 @@ typedef struct {
 } TransitionMatrix;
 
 // Initialize transition matrix with custom probabilities and states
-//
 TransitionMatrix* markovInitTransMatrix(const double** probs, MarkovState* state);
 
 // Build transition matrix based on time series from the data

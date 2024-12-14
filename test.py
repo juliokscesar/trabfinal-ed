@@ -1,11 +1,9 @@
 import numpy as np
 
-def random_series(p0: float, p1: float, size: int) -> np.ndarray:
-    if abs(1.0-(p0+p1)) > 1e-5:
+def random_series(vals: list, probs: list, size: int) -> np.ndarray:
+    if abs(1.0-sum(probs)) > 1e-5:
         print("probabilities must add up to 1")
         return None
-    vals = [0,1]
-    probs = [p0, p1]
     return np.random.choice(vals, size=size, p=probs).tolist()
 
 def osc_series(length, pattern=None):
@@ -22,7 +20,7 @@ def save_series(file: str, data):
             if i != len(data)-1:
                 f.write('\n')
 def main():
-    pat = random_series(0.3, 0.7, 10)
+    pat = random_series([0,1], [0.3, 0.7], 10)
     gen = osc_series(1000, pat)
     save_series("test.dat", gen)
 

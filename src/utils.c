@@ -113,6 +113,8 @@ int* loadData_i(const char* file, size_t* outN) {
 void splitTrainTest_i(const int* data, const size_t n, int** trainOut, int** testOut, size_t* trainSizeOut, size_t* testSizeOut, const double testRatio) {
     if (!data || !trainOut || !testOut)
         return;
+    if (testRatio > 1.0)
+        return;
 
     const size_t testSize = testRatio * n;
     *testOut = malloc(sizeof(int) * testSize);
@@ -137,6 +139,28 @@ void splitTrainTest_i(const int* data, const size_t n, int** trainOut, int** tes
 
     *trainSizeOut = trainSize;
     *testSizeOut = testSize;
+}
+
+void splitTrainValTest_i(const int* data, const size_t n, int** trainOut, int** valOut, int** testOut,
+    size_t* trainSizeOut, size_t* valSizeOut, size_t* testSizeOut, const double valRatio, const double testRatio) {
+    if (!data || !trainOut || !testOut)
+        return;
+
+    if (fabs(1.0 - (valRatio + testRatio)) > 1e-4)
+        return;
+
+    *valSizeOut = n * valRatio;
+    *testSizeOut = n * testRatio;
+    *trainSizeOut = n - *valSizeOut - *testSizeOut;
+
+    *trainOut = malloc(sizeof(int) * *trainSizeOut);
+    memcpy(*trainOut, data, sizeof(int) * *trainSizeOut);
+
+    *valOut = malloc(sizeof(int) * *valSizeOut);
+    memcpy(*valOut, data+(*trainSizeOut), sizeof(int) * *valSizeOut);
+
+    *testOut = malloc(sizeof(int) * *testSizeOut);
+    memcpy(*testOut, data+(*trainSizeOut)+(*valSizeOut), sizeof(int) * *testSizeOut);
 }
 
 double calcAccuracy(const int* truth, const int* predicted, const size_t n) {

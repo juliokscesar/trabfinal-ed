@@ -107,7 +107,31 @@ MarkovGraph* mkGraphInit(const MarkovState* states) {
     // initialize the nodes in the order of the states
     for (size_t i = 0; i < states->nStates; i++) {
         MarkovNode* stateNode = mkNodeInit(i, graph->order, states->states[i]);
+        if (!stateNode) {
+            LOG_ERROR("mkNodeInit failed for stateNode");
+            // Cleanup already allocated edges
+            for (size_t j = 0; j < i; j++) {
+                mkNodeFree(&(graph->edges[j]->orig));
+                mkEdgeFree(&(graph->edges[j]));
+            }
+            mkNodeFree(&stateNode);
+            free(graph->edges);
+            free(graph);
+            return NULL;
+        }
+
         graph->edges[i] = mkEdgeInit(stateNode, NULL, 0.0);
+        if (!graph->edges[i]) {
+            LOG_ERROR("mkEdgeInit failed for edge");
+            mkNodeFree(&stateNode);
+            for (size_t j = 0; j < i; j++) {
+                mkNodeFree(&(graph->edges[i]->orig));
+                mkEdgeFree(&(graph->edges[j]));
+            }
+            free(graph->edges);
+            free(graph);
+            return NULL;
+        }
     }
 
     return graph;
@@ -123,15 +147,16 @@ void mkGraphFree(MarkovGraph** graph) {
         for (size_t e = 0; e < (*graph)->nNodes; e++) {
             if ((*graph)->edges[e] && (*graph)->edges[e]->orig)
                 mkNodeFree(&(*graph)->edges[e]->orig);
+
+            // Deep free every edge of this node
+            MarkovGraphEdge* curr = (*graph)->edges[e];
+            while (curr) {
+                MarkovGraphEdge* temp = curr->next;
+                mkEdgeFree(&curr);
+                curr = temp;
+            }
         }
 
-        // Deep free every edge
-        MarkovGraphEdge* curr = (*graph)->edges[0];
-        while (curr) {
-            MarkovGraphEdge* temp = curr->next;
-            mkEdgeFree(&curr);
-            curr = temp;
-        }
         free((*graph)->edges);
     }
 

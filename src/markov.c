@@ -99,7 +99,7 @@ lli markovIdValState(const MarkovState* state, const int val) {
 }
 
 TransitionMatrix* markovInitTransMatrix(const double** probs, MarkovState* state) {
-    if (!probs || !state)
+    if (!state)
         return NULL;
 
     TransitionMatrix* m = malloc(sizeof(TransitionMatrix));
@@ -109,23 +109,27 @@ TransitionMatrix* markovInitTransMatrix(const double** probs, MarkovState* state
     }
 
     m->state = state;
-    m->probs = malloc(state->nStates * sizeof(double*));
-    if (!m->probs) {
-        LOG_ERROR("malloc failed for probabilities matrix m->probs");
-        free(m);
-        return NULL;
-    }
-    for (size_t i = 0; i < state->nStates; i++) {
-        m->probs[i] = malloc(state->nVals * sizeof(double));
-        if (!m->probs[i]) {
-            LOG_ERROR("malloc failed for one of probabilities rows");
-            for (size_t j = 0; j < i; j++)
-                free(m->probs[j]);
-            free(m->probs);
+    if (probs) {
+        m->probs = malloc(state->nStates * sizeof(double*));
+        if (!m->probs) {
+            LOG_ERROR("malloc failed for probabilities matrix m->probs");
             free(m);
             return NULL;
         }
-        memcpy(m->probs[i], probs[i], state->nVals * sizeof(double));
+        for (size_t i = 0; i < state->nStates; i++) {
+            m->probs[i] = malloc(state->nVals * sizeof(double));
+            if (!m->probs[i]) {
+                LOG_ERROR("malloc failed for one of probabilities rows");
+                for (size_t j = 0; j < i; j++)
+                    free(m->probs[j]);
+                free(m->probs);
+                free(m);
+                return NULL;
+            }
+            memcpy(m->probs[i], probs[i], state->nVals * sizeof(double));
+        }
+    } else {
+        m->probs = NULL;
     }
 
     return m;
@@ -183,10 +187,16 @@ void markovFreeTransMatrix(TransitionMatrix** m) {
 }
 
 void markovFillProbabilities(TransitionMatrix* m, const int* data, const size_t n) {
-    if (!m || !data || !m->state || !m->probs)
+    if (!m || !data || !m->state)
         return;
     if (m->state->order > (n-1))
         return;
+
+    if (!m->probs) {
+        m->probs = calloc(m->state->nStates, sizeof(double*));
+        for (size_t i = 0; i < m->state->nStates; i++)
+            m->probs[i] = calloc(m->state->nVals, sizeof(double));
+    }
 
     // For every state size N, create a vector of N+1 size and count the occurrences of that vector
     // since it will be the number of times that state transitioned to the (N+1) value

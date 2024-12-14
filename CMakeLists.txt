@@ -20,7 +20,7 @@ set(SRC
         src/utils.c
         src/logging.c
         src/markovgraph.c
-        src/matrixgraph.c
+        src/markovnetwork.c
 )
 
 set(HEADER
@@ -29,7 +29,7 @@ set(HEADER
         src/utils.h
         src/logging.h
         src/markovgraph.h
-        src/matrixgraph.h
+        src/markovnetwork.h
 )
 
 add_executable(proj ${SRC} ${HEADER})

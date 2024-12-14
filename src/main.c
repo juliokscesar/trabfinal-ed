@@ -6,13 +6,17 @@
 #include "markovgraph.h"
 #include "utils.h"
 
-int main(void) {
+int main(int argc, char** argv) {
     /// MARKOV TRANSITION MATRIX TEST
     printf("\n--------------------------- INIT TEST RUN ---------------------------\n");
     srand(42);
 
     size_t n = 0;
-    int* data = loadData_i("test.dat", &n);
+    int* data = NULL;
+    if (argc > 1)
+        data = loadData_i(argv[1], &n);
+    else
+        data = loadData_i("../test.dat", &n);
     if (!data) {
         LOG_ERROR("Unable to load test.dat");
         return -1;
@@ -34,7 +38,7 @@ int main(void) {
     printArr_i(test, testSize);
 
     // Build MarkovState with two values {0,1}
-    uint order = 3;
+    uint order = 6;
     int vals[] = {0,1};
     const size_t nVals = sizeof(vals) / sizeof(vals[0]);
     MarkovState* state = markovBuildStates(order, vals, nVals);
