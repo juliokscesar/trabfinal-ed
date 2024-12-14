@@ -3,6 +3,8 @@
 *.o
 *.bin
 *.dat
+*.dot
+*.png
 
 .temp/
 .vscode/

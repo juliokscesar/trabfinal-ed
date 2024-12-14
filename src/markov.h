@@ -1,4 +1,5 @@
-#ifndef _MARKOV_H
+#ifndef MARKOV_H
+#define MARKOV_H
 
 #include "typedefs.h"
 
@@ -53,4 +54,4 @@ void markovPredict(const TransitionMatrix* m, const uint steps, const int* data,
 // Predict next step
 int markovPredictNext(const TransitionMatrix* m, const int* data, const size_t n);
 
-#endif // _MARKOV_H
+#endif // MARKOV_H

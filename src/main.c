@@ -3,6 +3,7 @@
 
 #include "markov.h"
 #include "logging.h"
+#include "markovgraph.h"
 #include "utils.h"
 
 int main(void) {
@@ -33,7 +34,7 @@ int main(void) {
     printArr_i(test, testSize);
 
     // Build MarkovState with two values {0,1}
-    uint order = 17;
+    uint order = 3;
     int vals[] = {0,1};
     const size_t nVals = sizeof(vals) / sizeof(vals[0]);
     MarkovState* state = markovBuildStates(order, vals, nVals);
@@ -71,6 +72,13 @@ int main(void) {
     // putchar('\n');
     // ------------------------------------
 
+    MarkovGraph* graph = mkGraphInit(state);
+    LOG_INFO("initiated graph");
+    mkGraphBuildTransitions(graph, tm);
+    LOG_INFO("built transitions in graph");
+    mkGraphExport(graph, "graph.dot");
+
+    mkGraphFree(&graph);
     markovFreeTransMatrix(&tm);
     markovFreeState(&state);
     free(predicted);

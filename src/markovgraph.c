@@ -1,7 +1,11 @@
 #include "markovgraph.h"
 
+#include <string.h>
+
+#include "utils.h"
+
 /* ----------------------------- MARKOV NODE ----------------------------- */
-MarkovNode* mkNodeInit(const size_t id, TransitionMatrix* matrix) {
+MarkovNode* mkNodeInit(const size_t id, const uint order, int* state) {
     MarkovNode* node = malloc(sizeof(MarkovNode));
     if (!node) {
         LOG_ERROR("malloc error for node in mkNodeInit");
@@ -9,7 +13,9 @@ MarkovNode* mkNodeInit(const size_t id, TransitionMatrix* matrix) {
     }
 
     node->id = id;
-    node->matrix = matrix;
+    node->order = order;
+    // don't copy state
+    node->state = state;
 
     return node;
 }
@@ -18,8 +24,6 @@ void mkNodeFree(MarkovNode** node) {
     if (!node || !(*node))
         return;
 
-    if ((*node)->matrix)
-        markovFreeTransMatrix(&(*node)->matrix);
     free(*node);
     *node = NULL;
 }
@@ -30,10 +34,10 @@ size_t mkNodeId(const MarkovNode* node) {
     return node->id;
 }
 
-TransitionMatrix* mkNodeMatrix(const MarkovNode* node) {
+int* mkNodeState(const MarkovNode* node) {
     if (!node)
         return NULL;
-    return node->matrix;
+    return node->state;
 }
 /* ----------------------------------------------------------------------- */
 
@@ -77,19 +81,34 @@ double mkEdgeWeight(const MarkovGraphEdge* edge) {
 /* ----------------------------------------------------------------------- */
 
 /* ----------------------------- MARKOV GRAPH ----------------------------- */
-MarkovGraph* mkGraphInit() {
+MarkovGraph* mkGraphInit(const MarkovState* states) {
+    if (!states)
+        return NULL;
+
     MarkovGraph* graph = malloc(sizeof(MarkovGraph));
     if (!graph) {
         LOG_ERROR("malloc failed for graph");
         return NULL;
     }
 
-    // Fist allocate GRAPH_BUCKET_SIZE for the array of edges, and reallocate it if needed later
-    graph->edges = calloc(GRAPH_BUCKET_SIZE, sizeof(MarkovGraphEdge*));
-    graph->_memBuckets = 1;
+    graph->order = states->order;
+    graph->vals = states->vals;
+    graph->nVals = states->nVals;
 
-    graph->nEdges = 0;
-    graph->nNodes = 0;
+    // The number of nodes is the amount of states
+    graph->nNodes = states->nStates;
+    graph->edges = malloc(sizeof(MarkovGraphEdge*) * graph->nNodes);
+    if (!graph->edges) {
+        LOG_ERROR("malloc failed for graph->edges");
+        free(graph);
+        return NULL;
+    }
+
+    // initialize the nodes in the order of the states
+    for (size_t i = 0; i < states->nStates; i++) {
+        MarkovNode* stateNode = mkNodeInit(i, graph->order, states->states[i]);
+        graph->edges[i] = mkEdgeInit(stateNode, NULL, 0.0);
+    }
 
     return graph;
 }
@@ -121,49 +140,43 @@ void mkGraphFree(MarkovGraph** graph) {
     *graph = NULL;
 }
 
-bool _mkGraphIncreaseBucket(MarkovGraph* graph) {
-    graph->_memBuckets++;
-    MarkovGraphEdge** newBucket = realloc(graph->edges, graph->_memBuckets * sizeof(MarkovGraphEdge*));
-    if (!newBucket) {
-        LOG_ERROR("Failed to allocate bucket with increased size for graph");
-        return false;
+void mkGraphBuildTransitions(MarkovGraph* graph, const TransitionMatrix* tm) {
+    if (!graph || !tm)
+        return;
+
+    // For every state, we have the probability of the next value being 1 or 0
+    // so the next state is the current state with the last value replaced by this new one
+    // and the past values translated to the left
+    int* nextState = malloc(sizeof(int) * graph->order);
+    if (!nextState) {
+        LOG_ERROR("malloc failed for tempState, unable to initialize graph probabilities.");
+        return;
     }
-    graph->edges = newBucket;
-    return true;
-}
+    for (size_t stateID = 0; stateID < graph->nNodes; stateID++) {
+        MarkovNode* stateNode = graph->edges[stateID]->orig;
 
-MarkovNode* mkGraphAddNode(MarkovGraph* graph, MarkovNode* node) {
-    if (!graph || !node)
-        return NULL;
+        // copy only last two values of state
+        memcpy(nextState, stateNode->state+1, sizeof(int) * (graph->order - 1));
+        for (size_t valID = 0; valID < graph->nVals; valID++) {
+            // set next value for next state
+            nextState[graph->order - 1] = graph->vals[valID];
+            const lli nextID = mkGraphIdState(graph, nextState);
+            if (nextID == -1) {
+                LOG_ERROR("Unidentified state: ");
+                printArr_i(nextState, graph->order);
+                continue;
+            }
+            MarkovNode* nextNode = mkGraphGetNode(graph, nextID);
 
-    // Adjust node ID to be the newest ID
-    node->id = graph->nNodes;
-
-    // Check if need to increase bucket for adding node
-    if (graph->nNodes+1 > graph->_memBuckets * GRAPH_BUCKET_SIZE) {
-        if (!_mkGraphIncreaseBucket(graph)) {
-            LOG_ERROR("Failed to increase bucket size. Not adding Node to graph");
-            return NULL;
+            // Then add an edge for this transition with the probability from the matrix
+            MarkovGraphEdge* edge = mkGraphAddEdge(graph, stateNode, nextNode, tm->probs[stateID][valID]);
+            if (!edge) {
+                LOG_ERROR("Unable to add edge for state transition");
+                fprintf(stderr, "From ID %ld to ID %ld\n", stateID, nextNode->id);
+            }
         }
     }
-
-    // Insert node as an edge with NULL destiny and 0 weight
-    graph->edges[graph->nNodes] = mkEdgeInit(node, NULL, 0.0);
-    graph->nNodes++;
-    return node;
-}
-
-MarkovNode* mkGraphAddTransMatrix(MarkovGraph* graph, TransitionMatrix* tm) {
-    if (!graph || !tm)
-        return NULL;
-
-    // Create node with this matrix and latest id
-    MarkovNode* node = mkNodeInit(graph->nNodes, tm);
-    if (mkGraphAddNode(graph, node) == NULL) {
-        LOG_ERROR("Failed to add transition matrix to graph");
-        mkNodeFree(&node);
-    }
-    return node;
+    free(nextState);
 }
 
 MarkovNode* mkGraphGetNode(const MarkovGraph* graph, size_t id) {
@@ -176,6 +189,19 @@ bool mkGraphHasNode(const MarkovGraph* graph, const MarkovNode* node) {
     return (graph != NULL && node->id <= graph->nNodes);
 }
 
+lli mkGraphIdState(const MarkovGraph* graph, const int* state) {
+    if (!graph || !state)
+        return -1;
+
+    for (size_t id = 0; id < graph->nNodes; id++) {
+        const MarkovNode* stateNode = graph->edges[id]->orig;
+        if (memcmp(stateNode->state, state, sizeof(int) * graph->order) == 0)
+            return id;
+    }
+
+    return -1;
+}
+
 MarkovGraphEdge* mkGraphAddEdge(MarkovGraph* graph, MarkovNode* orig, MarkovNode* dest, double weight) {
     if (!graph)
         return NULL;
@@ -186,6 +212,13 @@ MarkovGraphEdge* mkGraphAddEdge(MarkovGraph* graph, MarkovNode* orig, MarkovNode
     size_t origID = mkNodeId(orig);
     // walk to orig edges list to get to the last one
     MarkovGraphEdge* edge = graph->edges[origID];
+    // Replace if this is the first one (edge->dest is NULL)
+    if (!edge->dest) {
+        edge->dest = dest;
+        edge->weight = weight;
+        return edge;
+    }
+
     while (edge->next)
         edge = edge->next;
     edge->next = mkEdgeInit(orig, dest, weight);
@@ -216,3 +249,41 @@ void mkGraphEdges(const MarkovGraph* graph, MarkovGraphEdge** outEdges) {
     }
 }
 
+void mkGraphExport(const MarkovGraph* graph, const char* file) {
+    if (!graph || !file)
+        return;
+
+    FILE* out = fopen(file, "w");
+    if (!out) {
+        LOG_ERROR("Unable to open file to export graph");
+        return;
+    }
+
+    char stateStr[256] = {'\0'};
+    char nextStr[256] = {'\0'};
+
+    fprintf(out, "digraph G {\n");
+    for (size_t i = 0; i < graph->nNodes; i++) {
+        MarkovGraphEdge* edge = graph->edges[i];
+        while (edge && edge->dest) {
+            for (size_t s = 0; s < graph->order; s++) {
+                sprintf(stateStr, "%s%d", stateStr, edge->orig->state[s]);
+                sprintf(nextStr, "%s%d", nextStr, edge->dest->state[s]);
+            }
+            stateStr[graph->order] = '\0';
+            nextStr[graph->order] = '\0';
+
+            fprintf(out, "    \"%s\" -> \"%s\" [label=\"%.2f\"];\n", stateStr, nextStr, edge->weight);
+
+            edge = edge->next;
+
+            memset(stateStr, '\0', 256);
+            memset(nextStr, '\0', 256);
+        }
+    }
+    fprintf(out, "}\n");
+
+    fclose(out);
+    LOG_INFO("Graph exported to ");
+    fprintf(stderr, "%s\n", file);
+}

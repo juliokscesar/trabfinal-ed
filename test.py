@@ -22,7 +22,8 @@ def save_series(file: str, data):
             if i != len(data)-1:
                 f.write('\n')
 def main():
-    gen = random_series(0.43, 1.0-0.43, 1500)
+    pat = random_series(0.3, 0.7, 10)
+    gen = osc_series(1000, pat)
     save_series("test.dat", gen)
 
 if __name__ == "__main__":

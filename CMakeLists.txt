@@ -20,14 +20,16 @@ set(SRC
         src/utils.c
         src/logging.c
         src/markovgraph.c
+        src/matrixgraph.c
 )
 
 set(HEADER
         src/markov.h
         src/typedefs.h
         src/utils.h
-        src/markovgraph.h
         src/logging.h
+        src/markovgraph.h
+        src/matrixgraph.h
 )
 
 add_executable(proj ${SRC} ${HEADER})
