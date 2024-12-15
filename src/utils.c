@@ -63,13 +63,69 @@ void printArr_i(const int* arr, const size_t n) {
     if (!arr)
         return;
     for (size_t i = 0; i < n; i++) {
-        printf("%d%c ", arr[i], ((i < (n-1)) ? ',' : '\0'));
+        printf("%d%s", arr[i], ((i < (n-1)) ? ", " : ""));
+    }
+    putchar('\n');
+}
+
+void printArr_d(const double* arr, const size_t n) {
+    if (!arr)
+        return;
+    for (size_t i = 0; i < n; i++) {
+        printf("%lf%s", arr[i], ((i < (n-1)) ? ", " : ""));
     }
     putchar('\n');
 }
 
 double rand01_d() {
     return (double)rand() / (double)((unsigned)RAND_MAX + 1);
+}
+
+int _cmpAsc(const void* a, const void* b) {
+    return (*(int*)a - *(int*)b);
+}
+
+void findDistinct_i(const int* data, const size_t n, int** out, size_t* outSize) {
+    if (!data || !out || !outSize)
+        return;
+
+    int* copy = malloc(sizeof(int) * n);
+    if (!copy) {
+        LOG_ERROR("malloc failed for allocating data copy, unable to sort in findDistinct");
+        return;
+    }
+    memcpy(copy, data, sizeof(int) * n);
+
+    // First sort array so all changes become consecutive
+    qsort(copy, n, sizeof(int), _cmpAsc);
+
+    *out = malloc(sizeof(int)*n);
+    if (!(*out)) {
+        LOG_ERROR("Unable to allocate memory for out array in findDistinct");
+        free(copy);
+        return;
+    }
+
+    size_t outI = 0;
+    for (size_t dataI = 0; dataI < n; dataI++) {
+        if (dataI == 0 || copy[dataI] != copy[dataI - 1]) {
+            (*out)[outI] = copy[dataI];
+            outI++;
+        }
+    }
+    *outSize = outI;
+
+    free(copy);
+
+    // If outSize is less than n, resize the distinct array to save memory
+    if (*outSize < n) {
+        int* temp = realloc(*out, *outSize);
+        if (!temp) {
+            LOG_WARNING("Tried to reallocate out array with less memory, but failed. Returning as it is");
+            return;
+        }
+        *out = temp;
+    }
 }
 
 int* loadData_i(const char* file, size_t* outN) {

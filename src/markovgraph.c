@@ -235,7 +235,7 @@ MarkovGraphEdge* mkGraphAddEdge(MarkovGraph* graph, MarkovNode* orig, MarkovNode
         return NULL;
 
     size_t origID = mkNodeId(orig);
-    // walk to orig edges list to get to the last one
+    // walk through orig edges list to get to the last one
     MarkovGraphEdge* edge = graph->edges[origID];
     // Replace if this is the first one (edge->dest is NULL)
     if (!edge->dest) {

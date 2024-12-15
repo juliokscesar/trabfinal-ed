@@ -94,6 +94,7 @@ void mkNetUpdateWeights(MarkovNetwork* net, const double lr, const size_t id, bo
 void mkNetNormStd(MarkovNetwork* net);
 void mkNetNormSoftmax(MarkovNetwork* net, double temperature);
 
+void mkNetSetLastState(MarkovNetwork* net, const int* lastState);
 void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* confOut);
 
 // Export Network Graph to DOT format (graph visualization tool)

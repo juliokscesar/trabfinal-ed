@@ -12,7 +12,10 @@ if (NOT MSVC)
    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 endif()
 
-include_directories(${PROJECT_SOURCE_DIR}/src/)
+include_directories(
+        ${PROJECT_SOURCE_DIR}/src/
+        ${PROJECT_SOURCE_DIR}/ext/inih
+)
 
 set(SRC
         src/main.c
@@ -21,6 +24,9 @@ set(SRC
         src/logging.c
         src/markovgraph.c
         src/markovnetwork.c
+
+        ${PROJECT_SOURCE_DIR}/ext/inih/ini.c
+        src/config.c
 )
 
 set(HEADER
@@ -30,6 +36,7 @@ set(HEADER
         src/logging.h
         src/markovgraph.h
         src/markovnetwork.h
+        src/config.h
 )
 
 add_executable(proj ${SRC} ${HEADER})

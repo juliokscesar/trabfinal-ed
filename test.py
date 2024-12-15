@@ -76,18 +76,18 @@ def generate_binary_time_series(
 
 def main():
     #pat = random_series([0,1], [0.3, 0.7], 10)
-    # pat = [0,0,1]
-    # gen = osc_series(1500, pat)
+    pat = [0,0,1]
+    gen = osc_series(1500, pat)
     #gen = random_series([0,1], [0.3, 0.7], 2000)
-    gen = generate_binary_time_series(
-        length=2000,
-        p_initial=0.64,
-        noise_prob=0.04,
-        trend_prob=0.01,
-        periodic_pattern=None,
-        burst_prob=0.1,
-        markov_order=1,
-    )
+    # gen = generate_binary_time_series(
+    #     length=2000,
+    #     p_initial=0.64,
+    #     noise_prob=0.04,
+    #     trend_prob=0.01,
+    #     periodic_pattern=None,
+    #     burst_prob=0.1,
+    #     markov_order=1,
+    # )
     save_series("test.dat", gen)
 
 if __name__ == "__main__":

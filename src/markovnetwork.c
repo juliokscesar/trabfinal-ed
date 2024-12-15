@@ -273,7 +273,7 @@ void mkNetTrain(MarkovNetwork* net, int* train, const size_t trainSize, const in
     mkNetNormSoftmax(net, 1.0);
 
     // then update data to include only the last state from valid, otherwise it will have old data (from train) and not from valid
-    mkNetSetInputData(net->start, &valid[validSize - net->markovOrder], net->markovOrder);
+    mkNetSetLastState(net, &valid[validSize - net->markovOrder]);
 }
 
 void mkNetInitMatrices(MarkovNetwork* net) {
@@ -340,6 +340,12 @@ void mkNetNormSoftmax(MarkovNetwork* net, double temperature) {
     free(expBuffer);
 }
 
+void mkNetSetLastState(MarkovNetwork* net, const int* lastState) {
+    if (!net || !lastState)
+        return;
+    mkNetSetInputData(net->start, lastState, net->markovOrder);
+}
+
 void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* confOut) {
     // The prediction process is:
     // 1. Get the output of each node separately
@@ -354,8 +360,6 @@ void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* 
     // keep track of the last state only
     int* lastState = malloc(sizeof(int) * net->markovOrder);
     memcpy(lastState, net->start->data + net->start->n - net->markovOrder, sizeof(int) * net->markovOrder);
-    printf("Initial last state: ");
-    printArr_i(lastState, net->markovOrder);
 
     int prediction = INT_MIN;
     double maxProb = 0.0;
@@ -468,5 +472,4 @@ void binarySegmentNoise(size_t nodeId, const int* data, int* out, size_t n, doub
         }
     }
 }
-
 /* ---------------------------------------------------------------------------- */

@@ -8,8 +8,10 @@ uint countSubsetIn_i(const int* arr, const size_t n, const int* subset, const si
 void buildCombinations_i(const int* vals, const size_t n, const size_t len, int** out, size_t* outNComb);
 
 void printArr_i(const int* arr, const size_t n);
+void printArr_d(const double* arr, const size_t n);
 double rand01_d();
 
+void findDistinct_i(const int* data, const size_t n, int** out, size_t* outSize);
 int* loadData_i(const char* file, size_t* outN);
 void saveData_i(const int* data, size_t n, const char* file);
 void splitTrainTest_i(const int* data, const size_t n, int** trainOut, int** testOut, size_t* trainSizeOut, size_t* testSizeOut, const double testRatio);
