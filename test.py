@@ -23,7 +23,7 @@ def main():
     #pat = random_series([0,1], [0.3, 0.7], 10)
     #pat = [0,0,1,1]
     #gen = osc_series(1500, pat)
-    gen = random_series([0,1], [0.43, 1-0.43], 2000)
+    gen = random_series([0,1], [0.3, 0.7], 2000)
     save_series("test.dat", gen)
 
 if __name__ == "__main__":

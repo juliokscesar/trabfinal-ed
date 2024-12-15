@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     printArr_i(test, testSize);
 
     // Build MarkovState with two values {0,1}
-    uint order = 5;
+    uint order = 3;
     int vals[] = {0,1};
     const size_t nVals = sizeof(vals) / sizeof(vals[0]);
     MarkovState* state = markovBuildStates(order, vals, nVals);
@@ -106,11 +106,11 @@ int main(int argc, char** argv) {
     printf("Test set (%zu): ", testsz);
     printArr_i(test, testsz);
 
-    const size_t nNetNodes = 10000;
-    const double lr = 0.001;
+    const size_t nNetNodes = 10;
+    const double lr = 0.02;
     double* errorFactor = malloc(sizeof(double) * nNetNodes);
     for (size_t i = 0; i < nNetNodes; i++)
-        errorFactor[i] = 0.00001 * (double)i;
+        errorFactor[i] = 0.02 * (double)i;
 
     MarkovNetwork* net = mkNetInit(state, nNetNodes, errorFactor, randomBinarySwap);
     mkNetTrain(net, train, trainsz, val, valsz, lr);

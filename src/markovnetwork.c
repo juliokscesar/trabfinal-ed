@@ -338,14 +338,15 @@ void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* 
     for (size_t i = 0; i < steps; i++) {
         // Get every node's answer
         for (size_t o = 0; o < net->nMatNodes; o++) {
-            int pred = markovPredictNext(net->output[o]->orig->matrix, lastState, net->markovOrder);
+            double prob = 0.0;
+            int pred = markovPredictNext(net->output[o]->orig->matrix, lastState, net->markovOrder, &prob);
             lli valID = mkNetOutIdVal(net->output[o]->dest, pred);
             if (valID == -1) {
                 LOG_ERROR("Unable to identify value in mkNetPredict.");
                 fprintf(stderr, "pred=%d, valid=%ld\n", pred, valID);
             }
             else
-                net->end->probabilities[valID] += net->output[o]->weight;
+                net->end->probabilities[valID] += net->output[o]->weight*prob;
         }
 
         // Chose prediction by argmax
