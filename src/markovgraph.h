@@ -63,6 +63,10 @@ lli mkGraphIdState(const MarkovGraph* graph, const int* state);
 MarkovGraphEdge* mkGraphAddEdge(MarkovGraph* graph, MarkovNode* orig, MarkovNode* dest, double weight);
 void mkGraphNodes(const MarkovGraph* graph, MarkovNode** outNodes);
 void mkGraphEdges(const MarkovGraph* graph, MarkovGraphEdge** outEdges);
+MarkovGraphEdge** mkGraphNodePaths(const MarkovGraph* graph, const MarkovNode* node, size_t* count);
+MarkovNode** mkGraphNeighbors(const MarkovGraph* graph, const MarkovNode* node, size_t* count);
+
+void mkGraphRandWalk(const MarkovGraph* graph, const int* lastState, const size_t steps, int* stopOut, double* probsOut);
 
 // Export graph to DOT format (graph visualization tool)
 void mkGraphExport(const MarkovGraph* graph, const char* file);

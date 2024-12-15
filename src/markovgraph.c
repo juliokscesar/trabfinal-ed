@@ -274,6 +274,107 @@ void mkGraphEdges(const MarkovGraph* graph, MarkovGraphEdge** outEdges) {
     }
 }
 
+MarkovGraphEdge** mkGraphNodePaths(const MarkovGraph* graph, const MarkovNode* node, size_t* count) {
+    if (!graph || !node || !count)
+        return NULL;
+
+    // Pre-allocate the maximum number of edges
+    MarkovGraphEdge** paths = calloc(graph->nEdges, sizeof(MarkovGraphEdge*));
+    if (!paths) {
+        LOG_ERROR("Failed to allocate memory for node paths in mkGraphNodePaths");
+        return NULL;
+    }
+
+    *count = 0;
+    MarkovGraphEdge* edge = graph->edges[node->id];
+    while (edge) {
+        paths[*count] = edge;
+        (*count)++;
+        edge = edge->next;
+    }
+
+    // Shrink memory usage if possible
+    if (*count < graph->nEdges) {
+        MarkovGraphEdge** temp = realloc(paths, sizeof(MarkovGraphEdge*) * (*count));
+        if (!temp) {
+            LOG_WARNING("Failed to reallocate graph node paths with less memory");
+            return paths;
+        }
+        paths = temp;
+    }
+
+    return paths;
+}
+
+MarkovNode** mkGraphNeighbors(const MarkovGraph* graph, const MarkovNode* node, size_t* count) {
+    if (!graph || !node || !count)
+        return NULL;
+    if (!mkGraphHasNode(graph, node))
+        return NULL;
+
+    // Pre-allocate the maximum number of edges
+    MarkovNode** neighbors = calloc(graph->nNodes, sizeof(MarkovNode*));
+    *count = 0;
+    MarkovGraphEdge* edge = graph->edges[node->id];
+    while (edge) {
+        neighbors[*count] = edge->dest;
+        (*count)++;
+        edge = edge->next;
+    }
+
+    // Shrink memory block if used size is less than allocated
+    if (*count < graph->nNodes) {
+        MarkovNode** temp = realloc(neighbors, sizeof(MarkovNode*) * (*count));
+        if (!temp) {
+            LOG_WARNING("Failed to reallocate neighbors array with less size. Sending as it is");
+            return neighbors;
+        }
+        neighbors = temp;
+    }
+
+    return neighbors;
+}
+
+void mkGraphRandWalk(const MarkovGraph* graph, const int* lastState, const size_t steps, int* stopOut,
+                     double* probsOut) {
+    // Random walk on the Markov Graph will provide a way to predict next states
+    if (!graph || !lastState || !stopOut)
+        return;
+
+    lli lastID = mkGraphIdState(graph, lastState);
+    if (lastID == -1) {
+        LOG_ERROR("Couldn't id last state in mkGraphRandWalk: ");
+        printArr_i(lastState, graph->order);
+        return;
+    }
+
+    MarkovNode* pos = mkGraphGetNode(graph, lastID);
+    for (size_t step = 0; step < steps; step++) {
+        size_t nPaths = 0;
+        MarkovGraphEdge** paths = mkGraphNodePaths(graph, pos, &nPaths);
+
+        // choose path by cumulative probability
+        double r = rand01_d();
+        double cumProb = 0.0;
+        for (size_t p = 0; p < nPaths; p++) {
+            if (!paths[p]->dest)
+                continue;
+            cumProb += paths[p]->weight;
+            if (r <= cumProb) {
+                pos = paths[p]->dest;
+                if (probsOut)
+                    probsOut[step] = cumProb;
+                break;
+            }
+        }
+
+        // The predicted value will be the last value of the new position
+        stopOut[step] = pos->state[pos->order - 1];
+
+        free(paths);
+    }
+}
+
 void mkGraphExport(const MarkovGraph* graph, const char* file) {
     if (!graph || !file)
         return;

@@ -27,8 +27,9 @@ void printHelp() {
     printf("!! You can change the default data file path in the config file. If no '-c config_file' is provided, it uses 'config.ini' as default.\n");
 }
 
+/* ---------------------------------------------- DEFAULT MARKOV CHAIN ---------------------------------------------- */
 TransitionMatrix* runDefaultMarkov(const int* train, const size_t trainSize, const int* valid, const size_t validSize,
-                        const int* test, const size_t testSize, MarkovState* states, const ContextConfiguration* cfg) {
+                                    const int* test, const size_t testSize, MarkovState* states, const ContextConfiguration* cfg) {
     printf("\n=====> INITIATING DEFAULT MARKOV FORECAST RUN <=====\n");
     printf("=====> USING ORDER: %u\n", states->order);
 
@@ -100,8 +101,11 @@ TransitionMatrix* runDefaultMarkov(const int* train, const size_t trainSize, con
     printf("=====> ENDING DEFAULT MARKOV FORECAST RUN <=====\n");
     return tm;
 }
+/* ------------------------------------------------------------------------------------------------------------------ */
 
-MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const ContextConfiguration* cfg) {
+/* -------------------------------------------------- MARKOV GRAPH -------------------------------------------------- */
+MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const int* valid, const size_t validSize, const int* test,
+                            const size_t testSize, const ContextConfiguration* cfg) {
     printf("\n=====> INITIATING MARKOV GRAPH RUN <=====\n");
 
     MarkovGraph* graph = mkGraphInit(tm->state);
@@ -110,6 +114,41 @@ MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const ContextConfigurati
         return NULL;
     }
     mkGraphBuildTransitions(graph, tm);
+
+    if (cfg->doRandomWalk) {
+        // Predict values doing random walk in the graph
+        int* predictions = malloc(sizeof(int) * testSize);
+        double* conf = malloc(sizeof(double) * testSize);
+
+        // Last state is the last 'order' values of the valid set (because we use train+valid to train the TransitionMatrix)
+        const int* lastState = &valid[validSize - graph->order];
+
+        clock_t time = clock();
+        mkGraphRandWalk(graph, lastState, testSize, predictions, conf);
+        time = clock() - time;
+        double delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
+        printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf\n", testSize, delta);
+
+        double acc = calcAccuracy(test, predictions, testSize);
+        printf("=====> ACCURACY: %lf\n", acc);
+
+        printf("\nTest set (%lu): ", testSize);
+        printArr_i(test, testSize);
+        printf("Predictions (%lu): ", testSize);
+        printArr_i(predictions, testSize);
+
+        if (cfg->showConfidence) {
+            double propagated = 1.0;
+            for (size_t i = 0; i < testSize; i++)
+                propagated *= conf[i];
+            printf("Pred. confidence (%lu): ", testSize);
+            printArr_d(conf, testSize);
+            printf("Final propagated confidence: %lf\n", propagated);
+        }
+
+        free(predictions);
+        free(conf);
+    }
 
     if (cfg->exportGraph)
         mkGraphExport(graph, "graph.dot");
@@ -120,7 +159,9 @@ MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const ContextConfigurati
 
     return graph;
 }
+/* ------------------------------------------------------------------------------------------------------------------ */
 
+/* ------------------------------------------------- MARKOV NETWORK ------------------------------------------------- */
 MarkovNetwork* runMarkovNetwork(MarkovState* states, int* train, size_t trainSize, int* valid, size_t validSize, int* test,
                         size_t testSize, const ContextConfiguration* cfg) {
     printf("\n=====> INITIATING MARKOV NETWORK RUN <=====\n");
@@ -200,6 +241,7 @@ MarkovNetwork* runMarkovNetwork(MarkovState* states, int* train, size_t trainSiz
 
     return net;
 }
+/* ------------------------------------------------------------------------------------------------------------------ */
 
 char* getArg(int argc, char* argv[], const char* key) {
     for (int i = 1; i < argc; i++) {
@@ -305,7 +347,7 @@ int main(int argc, char* argv[]) {
     // Build graph if requested
     MarkovGraph* graph = NULL;
     if (cfg->useMarkovGraph)
-        graph = runMarkovGraph(tm, cfg);
+        graph = runMarkovGraph(tm, valid, validSize, test, testSize, cfg);
 
     if (wait)
         enterWait();
@@ -359,8 +401,24 @@ int main(int argc, char* argv[]) {
     if (wait)
         enterWait();
 
-    // Predicions using Markov Graph random walk
-    // TODO
+    // Predictions using Markov Graph random walk
+    if (cfg->useMarkovGraph && graph) {
+        mkGraphRandWalk(graph, lastState, cfg->predictSteps, predictions, conf);
+
+        printf("\n====> PREDICTIONS USING RANDOM WALK IN MARKOV GRAPH: ");
+        printArr_i(predictions, cfg->predictSteps);
+        if (cfg->showConfidence) {
+            double prop = 1.0;
+            for (size_t i = 0; i < cfg->predictSteps; i++)
+                prop *= conf[i];
+            printf("=====> CONFIDENCE: ");
+            printArr_d(conf, cfg->predictSteps);
+            printf("=====> FINAL PROPAGATED CONFIDENCE: %lf\n", prop);
+        }
+    }
+
+    if (wait)
+        enterWait();
 
     // Predictions using Markov Network
     if (cfg->useMarkovNetwork && net) {
@@ -384,6 +442,8 @@ int main(int argc, char* argv[]) {
     mkNetFree(&net);
     markovFreeTransMatrix(&tm);
     markovFreeState(&states);
+    free(predictions);
+    free(conf);
     free(lastState);
     free(train);
     free(test);
