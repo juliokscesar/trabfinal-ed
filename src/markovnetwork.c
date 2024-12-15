@@ -84,7 +84,7 @@ void mkNetSetInputData(InputNode* node, const int* data, size_t n) {
     node->n = n;
 }
 
-InputEdge* mkNetInitInEdge(InputNode* orig, MatrixNode* dest, double errFac, int(* errFunc)(size_t, int, double)) {
+InputEdge* mkNetInitInEdge(InputNode* orig, MatrixNode* dest, double errFac, MKErrFuncT errFunc) {
     if (!orig || !dest)
         return NULL;
 
@@ -180,7 +180,7 @@ lli mkNetOutIdVal(OutputNode* node, int val) {
 /* ------------------------------------------------------------------------------------ */
 
 /* ----------------------------- MARKOV NETWORK ----------------------------- */
-MarkovNetwork* mkNetInit(MarkovState* state, const size_t nNodes, const double* errFactors, int (*errFunc)(size_t,int,double)) {
+MarkovNetwork* mkNetInit(MarkovState* state, const size_t nNodes, const double* errFactors, MKErrFuncT errFunc) {
     if (!state)
         return NULL;
 
@@ -259,20 +259,18 @@ void mkNetTrain(MarkovNetwork* net, int* train, const size_t trainSize, const in
     // and compare it with the predicted output of the node
     // then increase its weight if ok, else decrease
     int* prediction = malloc(sizeof(int) * validSize);
-    double weightSum = 0.0;
     for (size_t i = 0; i < net->nMatNodes; i++) {
         MatrixNode* currNode = net->output[i]->orig;
 
         markovPredict(currNode->matrix, (uint)validSize, net->start->data, net->start->n, prediction, NULL);
         for (size_t v = 0; v < validSize; v++)
             mkNetUpdateWeights(net, lr, i, valid[v] == prediction[v]);
-        weightSum += net->output[i]->weight;
     }
     free(prediction);
 
     // normalize the weights at the end
-    for (size_t i = 0; i < net->nMatNodes; i++)
-        net->output[i]->weight /= weightSum;
+    //mkNetNormStd(net);
+    mkNetNormSoftmax(net, 1.0);
 
     // then update data to include only the last state from valid, otherwise it will have old data (from train) and not from valid
     mkNetSetInputData(net->start, &valid[validSize - net->markovOrder], net->markovOrder);
@@ -292,8 +290,7 @@ void mkNetInitMatrices(MarkovNetwork* net) {
         const InputEdge* inEdge = net->input[i];
         // apply error if any
         if (inEdge->errFac > 0.0) {
-            for (size_t j = 0; j < net->start->n; j++)
-                trainCopy[j] = inEdge->errFunc(inEdge->dest->id, net->start->data[j], inEdge->errFac);
+            inEdge->errFunc(inEdge->dest->id, net->start->data,  trainCopy, net->start->n, inEdge->errFac);
             markovFillProbabilities(inEdge->dest->matrix, trainCopy, net->start->n);
         }
         else
@@ -318,6 +315,31 @@ void mkNetUpdateWeights(MarkovNetwork* net, const double lr, const size_t id, bo
         edge->weight = 0.0;
 }
 
+void mkNetNormStd(MarkovNetwork* net) {
+    // Standard Normalization: Wnorm_i = W_i / sum(W)
+    double weightSum = 0.0;
+    for (size_t i = 0; i < net->nMatNodes; i++)
+        weightSum += net->output[i]->weight;
+
+    for (size_t i = 0; i < net->nMatNodes; i++)
+        net->output[i]->weight /= weightSum;
+}
+
+void mkNetNormSoftmax(MarkovNetwork* net, double temperature) {
+    // Softmax normalization: Wnorm = exp(W_i / T) / sum(exp(W)))
+    double* expBuffer = malloc(sizeof(double) * net->nMatNodes);
+    double expSum = 0.0;
+    for (size_t i = 0; i < net->nMatNodes; i++) {
+        expBuffer[i] = exp(net->output[i]->weight / temperature);
+        expSum += expBuffer[i];
+    }
+
+    for (size_t i = 0; i < net->nMatNodes; i++)
+        net->output[i]->weight = expBuffer[i] / expSum;
+
+    free(expBuffer);
+}
+
 void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* confOut) {
     // The prediction process is:
     // 1. Get the output of each node separately
@@ -332,6 +354,8 @@ void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* 
     // keep track of the last state only
     int* lastState = malloc(sizeof(int) * net->markovOrder);
     memcpy(lastState, net->start->data + net->start->n - net->markovOrder, sizeof(int) * net->markovOrder);
+    printf("Initial last state: ");
+    printArr_i(lastState, net->markovOrder);
 
     int prediction = INT_MIN;
     double maxProb = 0.0;
@@ -343,13 +367,15 @@ void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* 
             lli valID = mkNetOutIdVal(net->output[o]->dest, pred);
             if (valID == -1) {
                 LOG_ERROR("Unable to identify value in mkNetPredict.");
-                fprintf(stderr, "pred=%d, valid=%ld\n", pred, valID);
+                fprintf(stderr, "pred=%d, valid=%ld, net->output[o]->dest->nVals=%zu, lastState: ", pred, valID, net->output[o]->dest->nVals);
+                printArr_i(lastState, net->markovOrder);
             }
             else
                 net->end->probabilities[valID] += net->output[o]->weight*prob;
         }
 
         // Chose prediction by argmax
+        prediction = net->end->vals[0];
         for (size_t v = 0; v < net->end->nVals; v++) {
             if (net->end->probabilities[v] > maxProb) {
                 maxProb = net->end->probabilities[v];
@@ -419,10 +445,28 @@ void mkNetExport(const MarkovNetwork* net, const char* file) {
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------- USEFUL ERROR FUNCTIONS -------------------------- */
-int randomBinarySwap(size_t nodeId, int dataVal, double errFactor) {
-    double r = rand01_d();
-    if (r <= errFactor)
-        return 1 - dataVal;
-    return dataVal;
+void randomBinarySwap(size_t nodeId, const int* data, int* out, size_t n, double errFactor) {
+    for (size_t i = 0; i < n; i++) {
+        if (rand01_d() <= errFactor)
+            out[i] = 1 - data[i];
+        else
+            out[i] = data[i];
+    }
 }
+
+void binarySegmentNoise(size_t nodeId, const int* data, int* out, size_t n, double errFactor) {
+    const size_t SEG_LEN = 3;
+    for (size_t i = 0; i < n; i++) {
+        out[i] = data[i];
+        if (i + SEG_LEN > n)
+            continue;
+
+        if (rand01_d() <= errFactor) {
+            for (size_t j = i; j < i + SEG_LEN; j++)
+                out[j] = 1 - data[j];
+            i += SEG_LEN - 1;
+        }
+    }
+}
+
 /* ---------------------------------------------------------------------------- */

@@ -305,11 +305,12 @@ int markovPredictNext(const TransitionMatrix* m, const int* data, const size_t n
         return INT_MAX;
 
     int prediction = INT_MAX;
-    lli stateID = markovIdState(m->state, data + n - m->state->order);
+    lli stateID = markovIdState(m->state, data + (n - m->state->order));
     if (stateID == -1) {
         LOG_ERROR("Unable to identify state");
         printf("ID: %ld, State: ", stateID);
         printArr_i(data+n-m->state->order, m->state->order);
+        return INT_MAX;
     }
 
     double r = rand01_d();
@@ -323,5 +324,8 @@ int markovPredictNext(const TransitionMatrix* m, const int* data, const size_t n
     }
     if (outConf)
         *outConf = cumProb;
+    // if probability is 0, choose random
+    if (cumProb < 1e-2)
+        prediction = m->state->vals[ rand() % m->state->nVals ];
     return prediction;
 }

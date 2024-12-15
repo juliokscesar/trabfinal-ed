@@ -10,7 +10,7 @@
 int main(int argc, char** argv) {
     /// MARKOV TRANSITION MATRIX TEST
     printf("\n--------------------------- INIT TEST RUN ---------------------------\n");
-    srand(42);
+    srand(3112205);
 
     size_t n = 0;
     int* data = NULL;
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     printArr_i(test, testSize);
 
     // Build MarkovState with two values {0,1}
-    uint order = 3;
+    uint order = 6;
     int vals[] = {0,1};
     const size_t nVals = sizeof(vals) / sizeof(vals[0]);
     MarkovState* state = markovBuildStates(order, vals, nVals);
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
 
     // Build markov transition matrix given the states and the training set
     TransitionMatrix* tm = markovBuildTransMatrix(train, trainSize, state);
-    //markovPrintTransMatrix(tm);
+    markovPrintTransMatrix(tm);
 
     printf("\nTest set validation:\n");
     printf("Test set (truth) (%ld): ", testSize);
@@ -99,18 +99,13 @@ int main(int argc, char** argv) {
         LOG_ERROR("Couldn't split train, val, test");
         return -1;
     }
-    printf("Train set (%zu): ", trainsz);
-    printArr_i(train,trainsz);
-    printf("Valid set (%zu): ", valsz);
-    printArr_i(val, valsz);
-    printf("Test set (%zu): ", testsz);
-    printArr_i(test, testsz);
+    printf("Training set: %zu, Valid set: %zu, Test set: %zu\n", trainsz, valsz, testsz);
 
-    const size_t nNetNodes = 10;
-    const double lr = 0.02;
+    const size_t nNetNodes = 15;
+    const double lr = 0.01;
     double* errorFactor = malloc(sizeof(double) * nNetNodes);
     for (size_t i = 0; i < nNetNodes; i++)
-        errorFactor[i] = 0.02 * (double)i;
+        errorFactor[i] = 0.03 * (double)i;
 
     MarkovNetwork* net = mkNetInit(state, nNetNodes, errorFactor, randomBinarySwap);
     mkNetTrain(net, train, trainsz, val, valsz, lr);

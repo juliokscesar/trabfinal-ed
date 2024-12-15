@@ -22,18 +22,19 @@ typedef struct {
    size_t n;
 } InputNode;
 
+typedef void(*MKErrFuncT)(size_t,const int*,int*,size_t,double);
 typedef struct {
    InputNode* orig;
    MatrixNode* dest;
    double errFac;
-   // errorFunc must be a function to take as input (dest->id, data[i], errorFactor) and return the altered i
-   int (*errFunc)(size_t,int,double);
+   // errorFunc must be a function to take as input (dest->id, data, dest, size, errorFactor)
+   MKErrFuncT errFunc;
 } InputEdge;
 
 InputNode* mkNetInitInput(const size_t id, const int* data, const size_t n);
 void mkNetFreeInput(InputNode** node);
 void mkNetSetInputData(InputNode* node, const int* data, size_t n);
-InputEdge* mkNetInitInEdge(InputNode* orig, MatrixNode* dest, double errFac, int (*errFunc)(size_t,int,double));
+InputEdge* mkNetInitInEdge(InputNode* orig, MatrixNode* dest, double errFac, MKErrFuncT errFunc);
 void mkNetFreeInEdge(InputEdge** edge);
 
 typedef struct {
@@ -80,7 +81,7 @@ typedef struct {
    uint markovOrder;
 } MarkovNetwork;
 
-MarkovNetwork* mkNetInit(MarkovState* state, const size_t nNodes, const double* errFactors, int (*errFunc)(size_t,int,double));
+MarkovNetwork* mkNetInit(MarkovState* state, const size_t nNodes, const double* errFactors, MKErrFuncT errFunc);
 void mkNetFree(MarkovNetwork** net);
 void mkNetMatrixNodes(MarkovNetwork* net, MatrixNode** out);
 
@@ -90,6 +91,9 @@ void mkNetTrain(MarkovNetwork* net, int* train, const size_t trainSize, const in
 void mkNetInitMatrices(MarkovNetwork* net);
 
 void mkNetUpdateWeights(MarkovNetwork* net, const double lr, const size_t id, bool correct);
+void mkNetNormStd(MarkovNetwork* net);
+void mkNetNormSoftmax(MarkovNetwork* net, double temperature);
+
 void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* confOut);
 
 // Export Network Graph to DOT format (graph visualization tool)
@@ -97,7 +101,8 @@ void mkNetExport(const MarkovNetwork* net, const char* file);
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------- USEFUL ERROR FUNCTIONS -------------------------- */
-int randomBinarySwap(size_t nodeId, int dataVal, double errFactor);
+void randomBinarySwap(size_t nodeId, const int* data, int* out, size_t n, double errFactor);
+void binarySegmentNoise(size_t nodeId, const int* data, int* out, size_t n, double errFactor);
 /* ---------------------------------------------------------------------------- */
 
 #endif //MARKOVNETWORK_H
