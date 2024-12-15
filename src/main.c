@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     printArr_i(test, testSize);
 
     // Build MarkovState with two values {0,1}
-    uint order = 3;
+    uint order = 5;
     int vals[] = {0,1};
     const size_t nVals = sizeof(vals) / sizeof(vals[0]);
     MarkovState* state = markovBuildStates(order, vals, nVals);
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
 
     // Build markov transition matrix given the states and the training set
     TransitionMatrix* tm = markovBuildTransMatrix(train, trainSize, state);
-    markovPrintTransMatrix(tm);
+    //markovPrintTransMatrix(tm);
 
     printf("\nTest set validation:\n");
     printf("Test set (truth) (%ld): ", testSize);
@@ -90,9 +90,7 @@ int main(int argc, char** argv) {
     free(test);
 
     // NETWORK TEST
-    printf("\n____________________________________________________\n");
-    printf("NETWORK TESTING\n");
-    printf("____________________________________________________\n");
+    printf("\n---------------------------------- NETWORK TESTING ----------------------------------\n");
 
     int* val;
     size_t trainsz, valsz, testsz;
@@ -108,11 +106,11 @@ int main(int argc, char** argv) {
     printf("Test set (%zu): ", testsz);
     printArr_i(test, testsz);
 
-    const size_t nNetNodes = 30;
+    const size_t nNetNodes = 10000;
     const double lr = 0.001;
     double* errorFactor = malloc(sizeof(double) * nNetNodes);
     for (size_t i = 0; i < nNetNodes; i++)
-        errorFactor[i] = 0.03 * (double)i;
+        errorFactor[i] = 0.00001 * (double)i;
 
     MarkovNetwork* net = mkNetInit(state, nNetNodes, errorFactor, randomBinarySwap);
     mkNetTrain(net, train, trainsz, val, valsz, lr);

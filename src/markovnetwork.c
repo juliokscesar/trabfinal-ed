@@ -287,6 +287,7 @@ void mkNetInitMatrices(MarkovNetwork* net) {
     memcpy(trainCopy, net->start->data, sizeof(int) * net->start->n);
 
     // Train with train set, with some random error applied
+    // *****CHANGE: introduce error in matrix not data*****
     for (size_t i = 0; i < net->nMatNodes; i++) {
         const InputEdge* inEdge = net->input[i];
         // apply error if any
