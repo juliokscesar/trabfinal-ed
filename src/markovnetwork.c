@@ -252,7 +252,6 @@ void mkNetTrain(MarkovNetwork* net, int* train, const size_t trainSize, const in
 
     // Train initial matrices
     mkNetSetInputData(net->start, train, trainSize);
-    printArr_i(net->start->data, net->start->n);
     mkNetInitMatrices(net);
 
     // Go through each value of the 'valid' set
@@ -404,6 +403,44 @@ void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* 
     free(lastState);
 }
 
+size_t mkNetOptimalNode(const MarkovNetwork* net, const double alpha, double* score) {
+    if (!net)
+        return INT_MAX;
+
+    // First get maximum and minimum weight and error factor
+    double wmax = (double)INT_MIN;
+    double wmin = (double)INT_MAX;
+    double errmax = wmax;
+    double errmin = wmin;
+
+    for (size_t i = 0; i < net->nMatNodes; i++) {
+        if (net->input[i]->errFac > errmax)
+            errmax = net->input[i]->errFac;
+        if (net->input[i]->errFac < errmin)
+            errmin = net->input[i]->errFac;
+
+        if (net->output[i]->weight > wmax)
+            wmax = net->output[i]->weight;
+        if (net->output[i]->weight < wmin)
+            wmin = net->output[i]->weight;
+    }
+
+    *score = (double)INT_MIN;
+    size_t optimalID = net->nMatNodes;
+    for (size_t i = 0; i < net->nMatNodes; i++) {
+        double wnorm = (net->output[i]->weight - wmin) / (wmax - wmin);
+        double errnorm = (net->input[i]->errFac - errmin) / (errmax - errmin);
+
+        double nodeScore = alpha * wnorm - (1.0-alpha) * errnorm;
+        if (nodeScore > *score) {
+            *score = nodeScore;
+            optimalID = i;
+        }
+    }
+
+    return optimalID;
+}
+
 void mkNetExport(const MarkovNetwork* net, const char* file) {
     if (!net || !file)
         return;
@@ -471,5 +508,20 @@ void binarySegmentNoise(size_t nodeId, const int* data, int* out, size_t n, doub
             i += SEG_LEN - 1;
         }
     }
+}
+
+void randomSwap(size_t nodeId, const int* data, int* out, size_t n, double errFactor) {
+    int* unique = NULL;
+    size_t nUnique = 0;
+    findDistinct_i(data, n, &unique, &nUnique);
+
+    for (size_t i = 0; i < n; i++) {
+        if (rand01_d() <= errFactor)
+            out[i] = unique[ rand() % n ];
+        else
+            out[i] = data[i];
+    }
+
+    free(unique);
 }
 /* ---------------------------------------------------------------------------- */

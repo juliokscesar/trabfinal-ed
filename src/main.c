@@ -29,7 +29,7 @@ void printHelp() {
 
 /* ---------------------------------------------- DEFAULT MARKOV CHAIN ---------------------------------------------- */
 TransitionMatrix* runDefaultMarkov(const int* train, const size_t trainSize, const int* valid, const size_t validSize,
-                                    const int* test, const size_t testSize, MarkovState* states, const ContextConfiguration* cfg) {
+                                    const int* test, const size_t testSize, MarkovState* states, const ContextConfiguration* cfg, double* outAcc) {
     printf("\n=====> INITIATING DEFAULT MARKOV FORECAST RUN <=====\n");
     printf("=====> USING ORDER: %u\n", states->order);
 
@@ -76,13 +76,10 @@ TransitionMatrix* runDefaultMarkov(const int* train, const size_t trainSize, con
     double delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
     printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf\n", testSize, delta);
 
-    double acc = calcAccuracy(test, predictions, testSize);
-    printf("=====> ACCURACY: %lf\n", acc);
-
-    printf("\nTest set (%lu): ", testSize);
-    printArr_i(test, testSize);
-    printf("Predictions (%lu): ", testSize);
-    printArr_i(predictions, testSize);
+    // printf("\nTest set (%lu): ", testSize);
+    // printArr_i(test, testSize);
+    // printf("Predictions (%lu): ", testSize);
+    // printArr_i(predictions, testSize);
 
     if (cfg->showConfidence) {
         double propagated = 1.0;
@@ -92,6 +89,12 @@ TransitionMatrix* runDefaultMarkov(const int* train, const size_t trainSize, con
         printArr_d(conf, testSize);
         printf("Final propagated confidence: %lf\n", propagated);
     }
+
+    double acc = calcAccuracy(test, predictions, testSize);
+    printf("=====> ACCURACY: %lf\n", acc);
+
+    if (outAcc)
+        *outAcc = acc;
 
     putchar('\n');
 
@@ -105,7 +108,7 @@ TransitionMatrix* runDefaultMarkov(const int* train, const size_t trainSize, con
 
 /* -------------------------------------------------- MARKOV GRAPH -------------------------------------------------- */
 MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const int* valid, const size_t validSize, const int* test,
-                            const size_t testSize, const ContextConfiguration* cfg) {
+                            const size_t testSize, const ContextConfiguration* cfg, double* outAcc) {
     printf("\n=====> INITIATING MARKOV GRAPH RUN <=====\n");
 
     MarkovGraph* graph = mkGraphInit(tm->state);
@@ -129,13 +132,10 @@ MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const int* valid, const 
         double delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
         printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf\n", testSize, delta);
 
-        double acc = calcAccuracy(test, predictions, testSize);
-        printf("=====> ACCURACY: %lf\n", acc);
-
-        printf("\nTest set (%lu): ", testSize);
-        printArr_i(test, testSize);
-        printf("Predictions (%lu): ", testSize);
-        printArr_i(predictions, testSize);
+        // printf("\nTest set (%lu): ", testSize);
+        // printArr_i(test, testSize);
+        // printf("Predictions (%lu): ", testSize);
+        // printArr_i(predictions, testSize);
 
         if (cfg->showConfidence) {
             double propagated = 1.0;
@@ -146,14 +146,33 @@ MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const int* valid, const 
             printf("Final propagated confidence: %lf\n", propagated);
         }
 
+        double acc = calcAccuracy(test, predictions, testSize);
+        printf("=====> ACCURACY: %lf\n", acc);
+
+        if (outAcc)
+            *outAcc = acc;
+
         free(predictions);
         free(conf);
     }
 
+    if (cfg->findDisconnected) {
+        size_t count = 0;
+        size_t* discIDs = mkGraphFindDisconnected(graph, &count);
+        if (!discIDs || count == 0)
+            printf("Couldn't find disconnected nodes in the graph\n");
+        else {
+            for (size_t i = 0; i < count; i++) {
+                printf("=======> DISCONNECTED ID: %lu, STATE: ", discIDs[i]);
+                printArr_i(mkNodeState(mkGraphGetNode(graph, discIDs[i])), graph->order);
+                }
+        }
+
+        free(discIDs);
+    }
+
     if (cfg->exportGraph)
         mkGraphExport(graph, "graph.dot");
-
-    // TODO: rest of graph algorithms
 
     printf("\n=====> ENDING MARKOV GRAPH RUN <=====\n");
 
@@ -163,15 +182,19 @@ MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const int* valid, const 
 
 /* ------------------------------------------------- MARKOV NETWORK ------------------------------------------------- */
 MarkovNetwork* runMarkovNetwork(MarkovState* states, int* train, size_t trainSize, int* valid, size_t validSize, int* test,
-                        size_t testSize, const ContextConfiguration* cfg) {
+                        size_t testSize, const ContextConfiguration* cfg, double* outAcc) {
     printf("\n=====> INITIATING MARKOV NETWORK RUN <=====\n");
 
     // Calculate error factor for each matrix node
     double* errFactors = malloc(cfg->netNodes * sizeof(double));
-    for (size_t n = 0; n < cfg->netNodes; n++)
-        errFactors[n] = cfg->minErrFactor * (double)n;
+    for (size_t n = 0; n < cfg->netNodes; n++) {
+        if (cfg->minErrFactor * (double)n > 0.95)
+            errFactors[n] = 0.95;
+        else
+            errFactors[n] = cfg->minErrFactor * (double)n;
+    }
 
-    static const MKErrFuncT map[] = {randomBinarySwap, binarySegmentNoise};
+    static const MKErrFuncT map[] = {randomBinarySwap, binarySegmentNoise, randomSwap};
     const size_t funcMapSize = sizeof(map) / sizeof(map[0]);
     if (cfg->errFuncID >= funcMapSize) {
         LOG_ERROR("Invalid error function id:");
@@ -212,13 +235,10 @@ MarkovNetwork* runMarkovNetwork(MarkovState* states, int* train, size_t trainSiz
     delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
     printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf s\n", testSize, delta);
 
-    double acc = calcAccuracy(test, predictions, testSize);
-    printf("=====> ACCURACY: %lf\n", acc);
-
-    printf("\nTest set (%lu): ", testSize);
-    printArr_i(test, testSize);
-    printf("Predictions (%lu): ", testSize);
-    printArr_i(predictions, testSize);
+    // printf("\nTest set (%lu): ", testSize);
+    // printArr_i(test, testSize);
+    // printf("Predictions (%lu): ", testSize);
+    // printArr_i(predictions, testSize);
 
     if (cfg->showConfidence) {
         double propagated = 1.0;
@@ -227,6 +247,23 @@ MarkovNetwork* runMarkovNetwork(MarkovState* states, int* train, size_t trainSiz
         printf("Pred. confidence (%lu): ", testSize);
         printArr_d(conf, testSize);
         printf("Final propagated confidence: %lf\n", propagated);
+    }
+    double acc = calcAccuracy(test, predictions, testSize);
+    printf("=====> ACCURACY: %lf\n", acc);
+
+    if (outAcc)
+        *outAcc = acc;
+
+    if (cfg->getMostOptimalNode) {
+        double score = 0.0;
+        size_t optID = mkNetOptimalNode(net, cfg->scoreAlpha, &score);
+        if (optID >= cfg->netNodes) {
+            LOG_ERROR("Couldn't get most optimal node ID from Markov Network");
+        } else {
+            printf("=====> NETWORK MOST OPTIMAL NODE: ID %lu, WEIGHT: %lf, ERROR FACTOR: %lf, SCORE %lf, NODE TRANSITION MATRIX:\n",
+                optID, net->output[optID]->weight, net->input[optID]->errFac, score);
+            markovPrintTransMatrix(net->input[optID]->dest->matrix);
+        }
     }
 
     if (cfg->exportNetwork)
@@ -319,13 +356,13 @@ int main(int argc, char* argv[]) {
     printArr_i(data, dataSize);
     printf("Unique values (%lu): ", uniqueSize);
     printArr_i(unique, uniqueSize);
-    printf("Train set (%lu): ", trainSize);
-    printArr_i(train, trainSize);
-    printf("Valid set (%lu): ", validSize);
-    printArr_i(valid, validSize);
-    printf("Test set (%lu): ", testSize);
-    printArr_i(test, testSize);
-    putchar('\n');
+    // printf("Train set (%lu): ", trainSize);
+    // printArr_i(train, trainSize);
+    // printf("Valid set (%lu): ", validSize);
+    // printArr_i(valid, validSize);
+    // printf("Test set (%lu): ", testSize);
+    // printArr_i(test, testSize);
+    // putchar('\n');
 
     // Build markov states
     MarkovState* states = markovBuildStates(cfg->order, unique, uniqueSize);
@@ -335,7 +372,8 @@ int main(int argc, char* argv[]) {
     }
 
     // Run forecast with default markov chain
-    TransitionMatrix* tm = runDefaultMarkov(train, trainSize, valid, validSize, test, testSize, states, cfg);
+    double mkAcc = 0.0;
+    TransitionMatrix* tm = runDefaultMarkov(train, trainSize, valid, validSize, test, testSize, states, cfg, &mkAcc);
     if (!tm) {
         LOG_FATAL("Unable to get transition matrix from default run");
         return -1;
@@ -346,16 +384,18 @@ int main(int argc, char* argv[]) {
 
     // Build graph if requested
     MarkovGraph* graph = NULL;
+    double gAcc = 0.0;
     if (cfg->useMarkovGraph)
-        graph = runMarkovGraph(tm, valid, validSize, test, testSize, cfg);
+        graph = runMarkovGraph(tm, valid, validSize, test, testSize, cfg, &gAcc);
 
     if (wait)
         enterWait();
 
     // Build network if requested
     MarkovNetwork* net = NULL;
+    double nAcc = 0.0;
     if (cfg->useMarkovNetwork)
-        net = runMarkovNetwork(states, train, trainSize, valid, validSize, test, testSize, cfg);
+        net = runMarkovNetwork(states, train, trainSize, valid, validSize, test, testSize, cfg, &nAcc);
 
     if (wait)
         enterWait();
@@ -387,7 +427,7 @@ int main(int argc, char* argv[]) {
 
     // Predictions using Default Markov Chain
     markovPredict(tm, cfg->predictSteps, lastState, states->order, predictions, conf);
-    printf("\n====> PREDICTIONS USING DEFAULT MARKOV CHAIN: ");
+    printf("\n====> PREDICTIONS USING DEFAULT MARKOV CHAIN (acc: %lf): ", mkAcc);
     printArr_i(predictions, cfg->predictSteps);
     if (cfg->showConfidence) {
         double prop = 1.0;
@@ -405,7 +445,7 @@ int main(int argc, char* argv[]) {
     if (cfg->useMarkovGraph && graph) {
         mkGraphRandWalk(graph, lastState, cfg->predictSteps, predictions, conf);
 
-        printf("\n====> PREDICTIONS USING RANDOM WALK IN MARKOV GRAPH: ");
+        printf("\n====> PREDICTIONS USING RANDOM WALK IN MARKOV GRAPH (acc: %lf): ", gAcc);
         printArr_i(predictions, cfg->predictSteps);
         if (cfg->showConfidence) {
             double prop = 1.0;
@@ -425,7 +465,7 @@ int main(int argc, char* argv[]) {
         mkNetSetLastState(net, lastState);
         mkNetPredict(net, cfg->predictSteps, predictions, conf);
 
-        printf("\n====> PREDICTIONS USING MARKOV NETWORK: ");
+        printf("\n====> PREDICTIONS USING MARKOV NETWORK (acc: %lf): ", nAcc);
         printArr_i(predictions, cfg->predictSteps);
         if (cfg->showConfidence) {
             double prop = 1.0;

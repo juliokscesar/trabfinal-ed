@@ -13,14 +13,6 @@ def osc_series(length, pattern=None):
     repeated_pattern = (pattern * ((length // len(pattern)) + 1))[:length]
     return np.array(repeated_pattern)
 
-def save_series(file: str, data):
-    with open(file, "w") as f:
-        for i, val in enumerate(data):
-            f.write(str(val))
-            if i != len(data)-1:
-                f.write('\n')
-
-
 def generate_binary_time_series(
         length=1000,
         p_initial=0.5,
@@ -74,20 +66,29 @@ def generate_binary_time_series(
 
     return series
 
+
+def save_series(file: str, data):
+    with open(file, "w") as f:
+        for i, val in enumerate(data):
+            f.write(str(val))
+            if i != len(data)-1:
+                f.write('\n')
+
+
 def main():
     #pat = random_series([0,1], [0.3, 0.7], 10)
-    pat = [0,0,1]
-    gen = osc_series(1500, pat)
-    #gen = random_series([0,1], [0.3, 0.7], 2000)
-    # gen = generate_binary_time_series(
-    #     length=2000,
-    #     p_initial=0.64,
-    #     noise_prob=0.04,
-    #     trend_prob=0.01,
-    #     periodic_pattern=None,
-    #     burst_prob=0.1,
-    #     markov_order=1,
-    # )
+    # pat = list(range(0, 10))
+    # gen = osc_series(10000, pat)
+    # gen = random_series([0,1], [0.3, 0.7], 2000)
+    gen = generate_binary_time_series(
+        length=30000,
+        p_initial=0.70,
+        noise_prob=0.04,
+        trend_prob=0.01,
+        periodic_pattern=None,
+        burst_prob=0.1,
+        markov_order=1,
+    )
     save_series("test.dat", gen)
 
 if __name__ == "__main__":

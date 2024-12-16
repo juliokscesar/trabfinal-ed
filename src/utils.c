@@ -86,7 +86,7 @@ int _cmpAsc(const void* a, const void* b) {
 }
 
 void findDistinct_i(const int* data, const size_t n, int** out, size_t* outSize) {
-    if (!data || !out || !outSize)
+    if (!data || !out || !outSize || n == 0)
         return;
 
     int* copy = malloc(sizeof(int) * n);
@@ -119,7 +119,7 @@ void findDistinct_i(const int* data, const size_t n, int** out, size_t* outSize)
 
     // If outSize is less than n, resize the distinct array to save memory
     if (*outSize < n) {
-        int* temp = realloc(*out, *outSize);
+        int* temp = realloc(*out, (*outSize) * sizeof(int));
         if (!temp) {
             LOG_WARNING("Tried to reallocate out array with less memory, but failed. Returning as it is");
             return;

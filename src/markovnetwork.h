@@ -97,6 +97,13 @@ void mkNetNormSoftmax(MarkovNetwork* net, double temperature);
 void mkNetSetLastState(MarkovNetwork* net, const int* lastState);
 void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* confOut);
 
+// Returns the ID of the node which path balances the best between minimizing the error factor and maximizing the weight
+// The "score" (s) metric is calculated by: s = alpha * w' - (1-alpha) * err',
+// w' and err' are the normalized weight and error factor. Alpha is just an adjustable parameter
+// The goal to get the node that maximizes 's'.
+size_t mkNetOptimalNode(const MarkovNetwork* net, const double alpha, double* score);
+double mkNetNodeOptimalScore(const MarkovNetwork* net, const size_t id);
+
 // Export Network Graph to DOT format (graph visualization tool)
 void mkNetExport(const MarkovNetwork* net, const char* file);
 /* -------------------------------------------------------------------------- */
@@ -104,6 +111,8 @@ void mkNetExport(const MarkovNetwork* net, const char* file);
 /* -------------------------- USEFUL ERROR FUNCTIONS -------------------------- */
 void randomBinarySwap(size_t nodeId, const int* data, int* out, size_t n, double errFactor);
 void binarySegmentNoise(size_t nodeId, const int* data, int* out, size_t n, double errFactor);
+
+void randomSwap(size_t nodeId, const int* data, int* out, size_t n, double errFactor);
 /* ---------------------------------------------------------------------------- */
 
 #endif //MARKOVNETWORK_H

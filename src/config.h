@@ -23,13 +23,14 @@ typedef struct {
     double lr;
     double minErrFactor;
     uint errFuncID;
+    bool getMostOptimalNode;
+    double scoreAlpha;
 
     // Graph section
     bool useMarkovGraph;
     bool exportGraph;
     bool detectCycles;
     bool findDisconnected;
-    bool findMostLikelyPath;
     bool doRandomWalk;
 
     // Predictions section

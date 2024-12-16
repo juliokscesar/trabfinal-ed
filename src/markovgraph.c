@@ -133,7 +133,7 @@ MarkovGraph* mkGraphInit(const MarkovState* states) {
             return NULL;
         }
     }
-
+    graph->nEdges = 0;
     return graph;
 }
 
@@ -234,6 +234,7 @@ MarkovGraphEdge* mkGraphAddEdge(MarkovGraph* graph, MarkovNode* orig, MarkovNode
     if (!mkGraphHasNode(graph, orig) || !mkGraphHasNode(graph, dest))
         return NULL;
 
+    graph->nEdges++;
     size_t origID = mkNodeId(orig);
     // walk through orig edges list to get to the last one
     MarkovGraphEdge* edge = graph->edges[origID];
@@ -247,7 +248,6 @@ MarkovGraphEdge* mkGraphAddEdge(MarkovGraph* graph, MarkovNode* orig, MarkovNode
     while (edge->next)
         edge = edge->next;
     edge->next = mkEdgeInit(orig, dest, weight);
-    graph->nEdges++;
     return edge->next;
 }
 
@@ -281,7 +281,8 @@ MarkovGraphEdge** mkGraphNodePaths(const MarkovGraph* graph, const MarkovNode* n
     // Pre-allocate the maximum number of edges
     MarkovGraphEdge** paths = calloc(graph->nEdges, sizeof(MarkovGraphEdge*));
     if (!paths) {
-        LOG_ERROR("Failed to allocate memory for node paths in mkGraphNodePaths");
+        LOG_ERROR("Failed to allocate memory for node paths in mkGraphNodePaths, nEdges=");
+        printf("%lu\n", graph->nEdges);
         return NULL;
     }
 
@@ -333,6 +334,50 @@ MarkovNode** mkGraphNeighbors(const MarkovGraph* graph, const MarkovNode* node, 
     }
 
     return neighbors;
+}
+
+size_t* mkGraphFindDisconnected(const MarkovGraph* graph, size_t* count) {
+    if (!graph)
+        return NULL;
+
+    bool* visited = calloc(graph->nNodes, sizeof(bool));
+    // BFS in graph to find all visited nodes
+    // Only mark as visited those nodes that are destinies from other states,
+    // and whose paths probabilities (weights) are bigger than 0.0
+    for (size_t i = 0; i < graph->nNodes; i++) {
+        MarkovGraphEdge* edge = graph->edges[i];
+        while (edge) {
+            if (edge->dest && (edge->weight > 1e-3))
+                visited[edge->dest->id] = true;
+            edge = edge->next;
+        }
+    }
+
+    // In the end, the disconnected nodes will be those that weren't visited
+    size_t* disconnected = malloc(graph->nNodes * sizeof(size_t));
+    for (size_t i = 0; i < graph->nNodes; i++) {
+        if (!visited[i]) {
+            disconnected[*count] = i;
+            (*count)++;
+        }
+    }
+
+    if (*count == 0) {
+        free(visited);
+        return NULL;
+    }
+
+    // shrink memory if possible
+    if (*count < graph->nNodes) {
+        size_t* temp = realloc(disconnected, sizeof(size_t) * (*count));
+        if (!temp)
+            LOG_WARNING("Couldn't resize disconnected array with less memory in mkGraphFindDisconnected");
+        else
+            disconnected = temp;
+    }
+
+    free(visited);
+    return disconnected;
 }
 
 void mkGraphRandWalk(const MarkovGraph* graph, const int* lastState, const size_t steps, int* stopOut,

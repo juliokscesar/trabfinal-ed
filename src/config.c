@@ -42,6 +42,10 @@ int iniHandler(void* user, const char* section, const char* name, const char* va
         config->minErrFactor = strtod(value, NULL);
     else if (MATCH("network", "err_func_id"))
         config->errFuncID = (uint)atoi(value);
+    else if (MATCH("network", "get_most_optimal_node"))
+        config->getMostOptimalNode = (bool)atoi(value);
+    else if (MATCH("network", "score_alpha"))
+        config->scoreAlpha = strtod(value, NULL);
 
     else if (MATCH("graph", "use"))
         config->useMarkovGraph = (bool)atoi(value);
@@ -51,8 +55,6 @@ int iniHandler(void* user, const char* section, const char* name, const char* va
         config->detectCycles = (bool)atoi(value);
     else if (MATCH("graph", "find_disconnected"))
         config->findDisconnected = (bool)atoi(value);
-    else if (MATCH("graph", "find_most_likely_path"))
-        config->findMostLikelyPath = (bool)atoi(value);
     else if (MATCH("graph", "random_walk"))
         config->doRandomWalk = (bool)atoi(value);
 
