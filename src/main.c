@@ -23,12 +23,12 @@ void printHelp() {
     printf("Usage: ./proj [-h] [-d data_file] [-m] [-c config_file] [-w] [-s steps] [-p]\n");
     printf("=> [-h]: show this message and exit.\n");
     printf("=> [-d data_file]: use data file in path data_file.\n");
-    printf("=> [-m]: insert data manually value by value. If this flag and '-d data_file' is provided, ignore the data file.");
+    printf("=> [-m]: insert data manually value by value. If this flag and '-d data_file' is provided, ignore the data file.\n");
     printf("=> [-c config]: use config file in path confg_file.\n");
     printf("=> [-w]: wait for user input before advancing to next sections.\n");
     printf("=> [-s steps]: predict next 'steps' instead of what's in the configuration file.\n");
     printf("=> [-p]: print details from loaded data. Useful for making sure the program has loaded things correctly.\n");
-    printf("!! All file paths must be relative to the program's executable file.\n");
+    printf("!! All file paths must be relative to current working directory -- the one you're at right now.\n");
     printf("!! You can change the default data file path in the config file. If no '-c config_file' is provided, it uses 'config.ini' as default.\n");
 }
 
@@ -81,8 +81,10 @@ TransitionMatrix* runDefaultMarkov(const int* train, const size_t trainSize, con
     double delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
     printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf s\n", testSize, delta);
 
-    if (cfg->showConfMatrix)
+    if (cfg->showConfMatrix) {
+        printf("=====> CONFUSION MATRIX:\n");
         showConfusionMatrix(test, predictions, testSize);
+    }
 
     if (cfg->showConfidence) {
         double propagated = 1.0;
@@ -135,8 +137,10 @@ MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const int* valid, const 
         double delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
         printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf s\n", testSize, delta);
 
-        if (cfg->showConfMatrix)
+        if (cfg->showConfMatrix) {
+            printf("=====> CONFUSION MATRIX:\n");
             showConfusionMatrix(test, predictions, testSize);
+        }
 
         if (cfg->showConfidence) {
             double propagated = 1.0;
@@ -236,8 +240,10 @@ MarkovNetwork* runMarkovNetwork(MarkovState* states, int* train, size_t trainSiz
     delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
     printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf s\n", testSize, delta);
 
-    if (cfg->showConfMatrix)
+    if (cfg->showConfMatrix) {
+        printf("=====> CONFUSION MATRIX:\n");
         showConfusionMatrix(test, predictions, testSize);
+    }
 
     if (cfg->showConfidence) {
         double propagated = 1.0;
@@ -362,8 +368,8 @@ int main(int argc, char* argv[]) {
     }
     else
         data = loadData_i(cfg->defaultFile, &dataSize);
-    if (!data) {
-        LOG_FATAL("Unable to open data file. The path must be relative to this executable binary");
+    if (!data || dataSize == 0) {
+        LOG_FATAL("Unable to open data file. The path must be relative to the current working directory");
         return -1;
     }
 

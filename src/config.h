@@ -30,7 +30,6 @@ typedef struct {
     // Graph section
     bool useMarkovGraph;
     bool exportGraph;
-    bool detectCycles;
     bool findDisconnected;
     bool doRandomWalk;
 

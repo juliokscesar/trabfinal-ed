@@ -329,10 +329,10 @@ void showConfusionMatrix(const int* truth, const int* predicted, const size_t n)
     printf("\t\tPredicted\n");
     printf("True\t");
     for (size_t i = 0; i < unqPredSz; i++)
-        printf("%d\t\t\t", uniquePred[i]);
+        printf("%d\t\t", uniquePred[i]);
     putchar('\n');
     for (size_t i = 0; i < cmRows; i++) {
-        printf("%d\t\t", uniqueTrue[i]);
+        printf("%d\t", uniqueTrue[i]);
         for (size_t j = 0; j < cmCols; j++)
             printf("%lf\t", cm[i][j]);
         putchar('\n');

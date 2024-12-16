@@ -53,8 +53,6 @@ int iniHandler(void* user, const char* section, const char* name, const char* va
         config->useMarkovGraph = (bool)atoi(value);
     else if (MATCH("graph", "export"))
         config->exportGraph = (bool)atoi(value);
-    else if (MATCH("graph", "detect_cycles"))
-        config->detectCycles = (bool)atoi(value);
     else if (MATCH("graph", "find_disconnected"))
         config->findDisconnected = (bool)atoi(value);
     else if (MATCH("graph", "random_walk"))
