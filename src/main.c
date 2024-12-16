@@ -1,7 +1,10 @@
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <asm-generic/errno-base.h>
 
 #include "config.h"
 #include "markov.h"
@@ -17,9 +20,10 @@ void printIntro() {
 }
 
 void printHelp() {
-    printf("Usage: ./proj [-h] [-d data_file] [-c config_file] [-w] [-s steps] [-p]\n");
+    printf("Usage: ./proj [-h] [-d data_file] [-m] [-c config_file] [-w] [-s steps] [-p]\n");
     printf("=> [-h]: show this message and exit.\n");
     printf("=> [-d data_file]: use data file in path data_file.\n");
+    printf("=> [-m]: insert data manually value by value. If this flag and '-d data_file' is provided, ignore the data file.");
     printf("=> [-c config]: use config file in path confg_file.\n");
     printf("=> [-w]: wait for user input before advancing to next sections.\n");
     printf("=> [-s steps]: predict next 'steps' instead of what's in the configuration file.\n");
@@ -275,6 +279,36 @@ MarkovNetwork* runMarkovNetwork(MarkovState* states, int* train, size_t trainSiz
 }
 /* ------------------------------------------------------------------------------------------------------------------ */
 
+void manualInsertion(int** data, size_t* n) {
+    const size_t BUCKET = 100;
+    uint nBuckets = 1;
+    *data = malloc(sizeof(int) * nBuckets * BUCKET);
+    *n = 0;
+    char buffer[256];
+    printf("MANUAL DATA INSERTION (type non-numeric character to stop): ");
+    while (true) {
+        if (scanf("%255s", buffer) != 1)
+            break;
+
+        int val = 0;
+        if (sscanf(buffer, "%d", &val) == 1) {
+            (*data)[*n] = val;
+            (*n)++;
+            if (*n > BUCKET*nBuckets) {
+                nBuckets++;
+                int* temp = realloc(*data, sizeof(int) * nBuckets*BUCKET);
+                if (!temp) {
+                    LOG_ERROR("Failed to increase size for data input");
+                    break;
+                }
+                *data = temp;
+            }
+        }
+        else
+            break;
+    }
+}
+
 char* getArg(int argc, char* argv[], const char* key) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], key) == 0) {
@@ -318,8 +352,14 @@ int main(int argc, char* argv[]) {
     // Load data
     int* data = NULL;
     size_t dataSize = 0;
-    if (argc > 2)
-        data = loadData_i(getArg(argc,argv,"-d"), &dataSize);
+    if (argc > 2) {
+        // Insert data manually
+        if (getArg(argc, argv, "-m"))
+            manualInsertion(&data, &dataSize);
+        // Load data from file
+        else
+            data = loadData_i(getArg(argc,argv,"-d"), &dataSize);
+    }
     else
         data = loadData_i(cfg->defaultFile, &dataSize);
     if (!data) {
@@ -342,6 +382,11 @@ int main(int argc, char* argv[]) {
     splitTrainValTest_i(data, dataSize, &train, &valid, &test, &trainSize, &validSize, &testSize, cfg->validRatio, cfg->testRatio);
     if (!train || !valid || !test) {
         LOG_FATAL("Unable to split train, valid, test");
+        return -1;
+    }
+    if (validSize <= 2 || testSize <= 2) {
+        LOG_FATAL("There must be enough data to split between train, valid and test. But either valid or test are too small (the minimum is 2 for both of them).");
+        printf("Valid size: %lu, Test size: %lu\n", validSize, testSize);
         return -1;
     }
 
