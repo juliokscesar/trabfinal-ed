@@ -18,5 +18,7 @@ void splitTrainTest_i(const int* data, const size_t n, int** trainOut, int** tes
 void splitTrainValTest_i(const int* data, const size_t n, int** trainOut, int** valOut, int** testOut, size_t* trainSizeOut, size_t* valSizeOut, size_t* testSizeOut, const double valRatio, const double testRatio);
 
 double calcAccuracy(const int* truth, const int* predicted, const size_t n);
+double** confusionMatrix(const int* truth, const int* predicted, const size_t n, size_t* outRows, size_t* outCols);
+void showConfusionMatrix(const int* truth, const int* predicted, const size_t n);
 
 #endif // UTILS_H

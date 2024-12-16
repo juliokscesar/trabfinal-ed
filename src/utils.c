@@ -4,6 +4,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+#include <limits.h>
 
 #include "logging.h"
 
@@ -144,9 +146,18 @@ int* loadData_i(const char* file, size_t* outN) {
     int* data = malloc(BUCKET*sizeof(int));
     size_t n = 0;
 
+    char line[256];
     while (!feof(df)) {
         // scan integer to data
-        fscanf(df, "%d", &data[n]);
+        char* res = fgets(line, sizeof(line), df);
+        if (!res)
+            break;
+
+        const long val = strtol(line, NULL, 10);
+        if (errno == ERANGE || val > INT_MAX || val < INT_MIN)
+            continue;
+
+        data[n] = (int)val;
         n++;
 
         // check if we need to increase bucket
@@ -229,4 +240,106 @@ double calcAccuracy(const int* truth, const int* predicted, const size_t n) {
     for (size_t i = 0; i < n; i++)
         correct += (double)(truth[i] == predicted[i]);
     return correct / (double)n;
+}
+
+double** confusionMatrix(const int* truth, const int* predicted, const size_t n, size_t* outRows, size_t* outCols) {
+    if (!truth || !predicted)
+        return NULL;
+
+    int *uniqueTrue, *uniquePred;
+    size_t unqTrueSz, unqPredSz;
+    findDistinct_i(truth, n, &uniqueTrue, &unqTrueSz);
+    findDistinct_i(predicted, n, &uniquePred, &unqPredSz);
+    if (!uniqueTrue || !uniquePred) {
+        LOG_ERROR("Unable to get unique values from truth or predicted values");
+        return NULL;
+    }
+    if (unqTrueSz != unqPredSz)
+        LOG_WARNING("Truth and Predicted arrays have different unique values");
+
+    // Initialize confusion matrix
+    *outRows = unqTrueSz;
+    *outCols = unqPredSz;
+    double** cm = malloc(sizeof(double*) * *outRows);
+    if (!cm) {
+        LOG_ERROR("malloc failed for confusion matrix");
+        free(uniqueTrue); free(uniquePred);
+        return NULL;
+    }
+    for (size_t i = 0; i < *outRows; i++) {
+        cm[i] = calloc(*outCols, sizeof(double));
+        if (!cm[i]) {
+            LOG_ERROR("calloc failed for initializing confusion matrix columns");
+            for (size_t j = 0; j < i; j++)
+                free(cm[j]);
+            free(cm); free(uniqueTrue); free(uniquePred);
+            return NULL;
+        }
+    }
+
+    // Now build confusion matrix
+    for (size_t dataI = 0; dataI < n; dataI++) {
+        // id value based on unique values. unique array is sorted so use bsearch
+        int* inTrue = bsearch(&truth[dataI], uniqueTrue, unqTrueSz, sizeof(int), _cmpAsc);
+        if (!inTrue) {
+            LOG_ERROR("bsearch failed for finding value in uniqueTrue:");
+            printf("ID: %lu, truth[dataI]=%d\n", dataI, truth[dataI]);
+            continue;
+        }
+        const size_t trueIdx = inTrue - uniqueTrue;
+
+        int* inPred = bsearch(&predicted[dataI], uniquePred, unqPredSz, sizeof(int), _cmpAsc);
+        if (!inPred) {
+            LOG_ERROR("bsearch failed for finding value in uniquePred:");
+            printf("ID: %lu, truth[dataI]=%d\n", dataI, predicted[dataI]);
+            continue;
+        }
+        const size_t predIdx = inPred - uniquePred;
+        cm[trueIdx][predIdx]++;
+    }
+
+    free(uniqueTrue);
+    free(uniquePred);
+    return cm;
+}
+
+void showConfusionMatrix(const int* truth, const int* predicted, const size_t n) {
+    if (!truth || !predicted)
+        return;
+
+    size_t cmRows, cmCols;
+    double** cm = confusionMatrix(truth, predicted, n, &cmRows, &cmCols);
+    if (!cm) {
+        LOG_ERROR("Unable to get confusion matrix in showConfusionMatrix");
+        return;
+    }
+
+    int *uniqueTrue, *uniquePred;
+    size_t unqTrueSz, unqPredSz;
+    findDistinct_i(truth, n, &uniqueTrue, &unqTrueSz);
+    findDistinct_i(predicted, n, &uniquePred, &unqPredSz);
+    if (!uniqueTrue || !uniquePred) {
+        LOG_ERROR("Unable to get unique values from truth or predicted values");
+        return;
+    }
+    if (unqTrueSz != unqPredSz)
+        LOG_WARNING("Truth and Predicted arrays have different unique values");
+
+    // Print columns values first (space of 1 tab between start and between them)
+    printf("\t\tPredicted\n");
+    printf("True\t");
+    for (size_t i = 0; i < unqPredSz; i++)
+        printf("%d\t\t\t", uniquePred[i]);
+    putchar('\n');
+    for (size_t i = 0; i < cmRows; i++) {
+        printf("%d\t\t", uniqueTrue[i]);
+        for (size_t j = 0; j < cmCols; j++)
+            printf("%lf\t", cm[i][j]);
+        putchar('\n');
+    }
+
+    free(uniqueTrue); free(uniquePred);
+    for (size_t i = 0; i < cmRows; i++)
+        free(cm[i]);
+    free(cm);
 }

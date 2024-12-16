@@ -81,7 +81,7 @@ def main():
     # gen = osc_series(10000, pat)
     # gen = random_series([0,1], [0.3, 0.7], 2000)
     gen = generate_binary_time_series(
-        length=30000,
+        length=3000,
         p_initial=0.70,
         noise_prob=0.04,
         trend_prob=0.01,

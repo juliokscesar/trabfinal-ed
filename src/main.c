@@ -17,12 +17,13 @@ void printIntro() {
 }
 
 void printHelp() {
-    printf("Usage: ./proj [-h] [-d data_file] [-c config_file] [-w] [-s steps]\n");
+    printf("Usage: ./proj [-h] [-d data_file] [-c config_file] [-w] [-s steps] [-p]\n");
     printf("=> [-h]: show this message and exit.\n");
     printf("=> [-d data_file]: use data file in path data_file.\n");
     printf("=> [-c config]: use config file in path confg_file.\n");
     printf("=> [-w]: wait for user input before advancing to next sections.\n");
     printf("=> [-s steps]: predict next 'steps' instead of what's in the configuration file.\n");
+    printf("=> [-p]: print details from loaded data. Useful for making sure the program has loaded things correctly.\n");
     printf("!! All file paths must be relative to the program's executable file.\n");
     printf("!! You can change the default data file path in the config file. If no '-c config_file' is provided, it uses 'config.ini' as default.\n");
 }
@@ -74,12 +75,10 @@ TransitionMatrix* runDefaultMarkov(const int* train, const size_t trainSize, con
     markovPredict(tm, testSize, data, n, predictions, conf);
     time = clock() - time;
     double delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
-    printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf\n", testSize, delta);
+    printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf s\n", testSize, delta);
 
-    // printf("\nTest set (%lu): ", testSize);
-    // printArr_i(test, testSize);
-    // printf("Predictions (%lu): ", testSize);
-    // printArr_i(predictions, testSize);
+    if (cfg->showConfMatrix)
+        showConfusionMatrix(test, predictions, testSize);
 
     if (cfg->showConfidence) {
         double propagated = 1.0;
@@ -130,12 +129,10 @@ MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const int* valid, const 
         mkGraphRandWalk(graph, lastState, testSize, predictions, conf);
         time = clock() - time;
         double delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
-        printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf\n", testSize, delta);
+        printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf s\n", testSize, delta);
 
-        // printf("\nTest set (%lu): ", testSize);
-        // printArr_i(test, testSize);
-        // printf("Predictions (%lu): ", testSize);
-        // printArr_i(predictions, testSize);
+        if (cfg->showConfMatrix)
+            showConfusionMatrix(test, predictions, testSize);
 
         if (cfg->showConfidence) {
             double propagated = 1.0;
@@ -165,7 +162,7 @@ MarkovGraph* runMarkovGraph(const TransitionMatrix* tm, const int* valid, const 
             for (size_t i = 0; i < count; i++) {
                 printf("=======> DISCONNECTED ID: %lu, STATE: ", discIDs[i]);
                 printArr_i(mkNodeState(mkGraphGetNode(graph, discIDs[i])), graph->order);
-                }
+            }
         }
 
         free(discIDs);
@@ -235,10 +232,8 @@ MarkovNetwork* runMarkovNetwork(MarkovState* states, int* train, size_t trainSiz
     delta = ((double)time)/CLOCKS_PER_SEC; // time in seconds
     printf("=====> TIME TAKEN IN PREDICTIONS (%lu steps): %lf s\n", testSize, delta);
 
-    // printf("\nTest set (%lu): ", testSize);
-    // printArr_i(test, testSize);
-    // printf("Predictions (%lu): ", testSize);
-    // printArr_i(predictions, testSize);
+    if (cfg->showConfMatrix)
+        showConfusionMatrix(test, predictions, testSize);
 
     if (cfg->showConfidence) {
         double propagated = 1.0;
@@ -351,18 +346,20 @@ int main(int argc, char* argv[]) {
     }
 
     // Show data details
-    printf("DATA DETAILS:\n");
-    printf("Data (%lu): ", dataSize);
-    printArr_i(data, dataSize);
-    printf("Unique values (%lu): ", uniqueSize);
-    printArr_i(unique, uniqueSize);
-    // printf("Train set (%lu): ", trainSize);
-    // printArr_i(train, trainSize);
-    // printf("Valid set (%lu): ", validSize);
-    // printArr_i(valid, validSize);
-    // printf("Test set (%lu): ", testSize);
-    // printArr_i(test, testSize);
-    // putchar('\n');
+    if (getArg(argc, argv, "-p")) {
+        printf("DATA DETAILS:\n");
+        printf("Data (%lu): ", dataSize);
+        printArr_i(data, dataSize);
+        printf("Unique values (%lu): ", uniqueSize);
+        printArr_i(unique, uniqueSize);
+        printf("Train set (%lu): ", trainSize);
+        printArr_i(train, trainSize);
+        printf("Valid set (%lu): ", validSize);
+        printArr_i(valid, validSize);
+        printf("Test set (%lu): ", testSize);
+        printArr_i(test, testSize);
+        putchar('\n');
+    }
 
     // Build markov states
     MarkovState* states = markovBuildStates(cfg->order, unique, uniqueSize);

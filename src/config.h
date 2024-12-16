@@ -9,6 +9,7 @@ typedef struct {
     uint randSeed;
     bool showTransMatrix;
     bool showConfidence;
+    bool showConfMatrix;
 
     // data section
     char* defaultFile;

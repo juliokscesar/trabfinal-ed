@@ -19,6 +19,8 @@ int iniHandler(void* user, const char* section, const char* name, const char* va
         config->showTransMatrix = (bool)atoi(value);
     else if (MATCH("markov", "show_confidence"))
         config->showConfidence = (bool)atoi(value);
+    else if (MATCH("markov", "show_confusion_matrix"))
+        config->showConfMatrix = (bool)atoi(value);
 
     else if (MATCH("data", "default_file")) {
         config->fileNameLen = strlen(value);
