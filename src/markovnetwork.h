@@ -63,7 +63,7 @@ lli mkNetOutIdVal(OutputNode* node, int val);
    random errors, introduced to generalize views from the data.
 
    The graph has a first layer of M non-connected nodes. They all receive
-   the data from a root node, which will contain a associated 'error function'
+   the data from a root node, which will contain an associated 'error function'
    to introduce to the data. The output of each node will be compared to a
    'validation set', which true values will determine if we must increase/decrease
    the weight of their output edges.
@@ -97,10 +97,10 @@ void mkNetNormSoftmax(MarkovNetwork* net, double temperature);
 void mkNetSetLastState(MarkovNetwork* net, const int* lastState);
 void mkNetPredict(MarkovNetwork* net, const size_t steps, int* predOut, double* confOut);
 
-// Returns the ID of the node which path balances the best between minimizing the error factor and maximizing the weight
+// Returns the ID of the node whose path balances the best between minimizing the error factor and maximizing the weight
 // The "score" (s) metric is calculated by: s = alpha * w' - (1-alpha) * err',
 // w' and err' are the normalized weight and error factor. Alpha is just an adjustable parameter
-// The goal to get the node that maximizes 's'.
+// The goal is to get the node that maximizes 's'.
 size_t mkNetOptimalNode(const MarkovNetwork* net, const double alpha, double* score);
 double mkNetNodeOptimalScore(const MarkovNetwork* net, const size_t id);
 
