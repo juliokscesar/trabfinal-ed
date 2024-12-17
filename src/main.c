@@ -20,7 +20,7 @@ void printIntro() {
 }
 
 void printHelp() {
-    printf("Usage: ./proj [-h] [-d data_file] [-m] [-c config_file] [-w] [-s steps] [-p]\n");
+    printf("Usage: ./proj [-h] [-d data_file] [-m] [-c config_file] [-w] [-s steps] [-p] [-o order]\n");
     printf("=> [-h]: show this message and exit.\n");
     printf("=> [-d data_file]: use data file in path data_file.\n");
     printf("=> [-m]: insert data manually value by value. If this flag and '-d data_file' is provided, ignore the data file.\n");
@@ -28,6 +28,7 @@ void printHelp() {
     printf("=> [-w]: wait for user input before advancing to next sections.\n");
     printf("=> [-s steps]: predict next 'steps' instead of what's in the configuration file.\n");
     printf("=> [-p]: print details from loaded data. Useful for making sure the program has loaded things correctly.\n");
+    printf("=> [-o order]: use 'order' for the system, instead of what's set in the configuration file.\n");
     printf("!! All file paths must be relative to current working directory -- the one you're at right now.\n");
     printf("!! You can change the default data file path in the config file. If no '-c config_file' is provided, it uses 'config.ini' as default.\n");
 }
@@ -343,7 +344,7 @@ int main(int argc, char* argv[]) {
 
     char* cfgFile = getArg(argc, argv, "-c");
     if (!cfgFile)
-        cfgFile = "../config.ini";
+        cfgFile = "config.ini";
 
     // Get configuration
     ContextConfiguration* cfg = configInit();
@@ -410,6 +411,16 @@ int main(int argc, char* argv[]) {
         printf("Test set (%lu): ", testSize);
         printArr_i(test, testSize);
         putchar('\n');
+    }
+
+    char* ord = getArg(argc, argv, "-o");
+    if (ord) {
+        long spec = strtol(ord, NULL, 10);
+        if (errno == ERANGE || spec < 0 || spec > UINT_MAX) {
+            LOG_FATAL("Unable to read specified order, or invalid value entered.");
+            return -1;
+        }
+        cfg->order = (uint)spec;
     }
 
     // Build markov states

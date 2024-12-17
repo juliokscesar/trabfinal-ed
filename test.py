@@ -76,10 +76,10 @@ def save_series(file: str, data):
 
 
 def main():
-    #pat = random_series([0,1], [0.3, 0.7], 10)
-    # pat = list(range(0, 10))
-    # gen = osc_series(10000, pat)
-    gen = random_series([0,1], [0.3, 0.7], 2000)
+    pat = random_series([0,1], [0.53,0.47], 150)
+    # pat = [0,0,1]
+    gen = osc_series(5000, pat)
+    # gen = random_series([0,1], [0.3, 0.7], 2000)
     # gen = generate_binary_time_series(
     #     length=3000,
     #     p_initial=0.70,

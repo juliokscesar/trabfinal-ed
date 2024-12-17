@@ -331,7 +331,168 @@ void showConfusionMatrix(const int* truth, const int* predicted, const size_t n)
     }
 
     free(uniqueTrue);
+
+    // Show metrics
+    double macro, weighted;
+    calcPrecision(cm, unqTrueSz, &macro, &weighted);
+    printf("PRECISION: %lf (macro) | %lf (weighted)\n", macro, weighted);
+    calcRecall(cm, unqTrueSz, &macro, &weighted);
+    printf("RECALL: %lf (macro) | %lf (weighted)\n", macro, weighted);
+    calcF1(cm, unqTrueSz, &macro, &weighted);
+    printf("F1-score: %lf (macro) | %lf (weighted)\n", macro, weighted);
+
+
     for (size_t i = 0; i < cmRows; i++)
         free(cm[i]);
     free(cm);
+}
+
+void calcPrecision(double** confMatrix, const size_t n, double* macro, double* weighted) {
+    if (!confMatrix)
+        return;
+    if (macro)
+        *macro = 0.0;
+    if (weighted)
+        *weighted = 0.0;
+
+    // Precision: TP / (TP + FP)
+    // Conf matrix: row is true, column is predicted
+    double* perClass = malloc(sizeof(double) * n);
+    if (!perClass) {
+        LOG_ERROR("malloc failed for perClass precisions in calcPrecision");
+        return;
+    }
+
+    // for weighted calc
+    double totalTrue = 0.0;
+
+    for (size_t tru = 0; tru < n; tru++) {
+        double tp = confMatrix[tru][tru];
+        double fp = 0.0;
+        for (size_t pred = 0; pred < n; pred++) {
+            if (pred == tru)
+                continue;
+            fp += confMatrix[pred][tru];
+        }
+        perClass[tru] = tp / (tp + fp + 1e-6);
+
+        if (macro)
+            *macro += perClass[tru];
+        if (weighted) {
+            double totalClass = 0.0;
+            for (size_t col = 0; col < n; col++)
+                totalClass += confMatrix[tru][col];
+            totalTrue += totalClass;
+            *weighted += totalClass * perClass[tru];
+        }
+    }
+
+    if (macro && n > 0)
+        *macro /= (double)n;
+    if (weighted && totalTrue > 0.0) {
+        *weighted /= totalTrue;
+    }
+
+    free(perClass);
+}
+
+void calcRecall(double** confMatrix, const size_t n, double* macro, double* weighted) {
+    if (!confMatrix)
+        return;
+    if (macro)
+        *macro = 0.0;
+    if (weighted)
+        *weighted = 0.0;
+
+    // Recall: TP / (TP + FN)
+    // Conf matrix: row is true, column is predicted
+    double* perClass = malloc(sizeof(double) * n);
+    if (!perClass) {
+        LOG_ERROR("malloc failed for perClass precisions in calcPrecision");
+        return;
+    }
+
+    // for weighted calc
+    double totalTrue = 0.0;
+
+    for (size_t tru = 0; tru < n; tru++) {
+        double tp = confMatrix[tru][tru];
+        double fn = 0.0;
+        for (size_t pred = 0; pred < n; pred++) {
+            if (tru == pred)
+                continue;
+            fn += confMatrix[tru][pred];
+        }
+        perClass[tru] = tp / (tp + fn + 1e-6);
+
+        if (macro)
+            *macro += perClass[tru];
+        if (weighted) {
+            double totalClass = 0.0;
+            for (size_t col = 0; col < n; col++)
+                totalClass += confMatrix[tru][col];
+            totalTrue += totalClass;
+            *weighted += totalClass * perClass[tru];
+        }
+    }
+
+    if (macro && n > 0)
+        *macro /= (double)n;
+    if (weighted && totalTrue > 0.0) {
+        *weighted /= totalTrue;
+    }
+
+    free(perClass);
+}
+
+void calcF1(double** confMatrix, const size_t n, double* macro, double* weighted) {
+    if (!confMatrix)
+        return;
+    if (macro)
+        *macro = 0.0;
+    if (weighted)
+        *weighted = 0.0;
+
+    // F1-Score: 2 * (Precision * Recall) / (Precision + Recall)
+    // Conf matrix: row is true, column is predicted
+    double* perClass = malloc(sizeof(double) * n);
+    if (!perClass) {
+        LOG_ERROR("malloc failed for perClass precisions in calcPrecision");
+        return;
+    }
+
+    // for weighted calc
+    double totalTrue = 0.0;
+
+    for (size_t tru = 0; tru < n; tru++) {
+        double tp = confMatrix[tru][tru];
+        double fp = 0.0, fn = 0.0;
+        for (size_t pred = 0; pred < n; pred++) {
+            if (pred == tru)
+                continue;
+            fp += confMatrix[pred][tru];
+            fn += confMatrix[tru][pred];
+        }
+        const double prec = tp / (tp + fp + 1e-6);
+        const double rec = tp / (tp + fn + 1e-6);
+        perClass[tru] = 2.0 * (prec * rec) / (prec + rec + 1e-6);
+
+        if (macro)
+            *macro += perClass[tru];
+        if (weighted) {
+            double totalClass = 0.0;
+            for (size_t col = 0; col < n; col++)
+                totalClass += confMatrix[tru][col];
+            totalTrue += totalClass;
+            *weighted += totalClass * perClass[tru];
+        }
+    }
+
+    if (macro && n > 0)
+        *macro /= (double)n;
+    if (weighted && totalTrue > 0.0) {
+        *weighted /= totalTrue;
+    }
+
+    free(perClass);
 }
