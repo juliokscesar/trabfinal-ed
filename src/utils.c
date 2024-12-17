@@ -246,24 +246,20 @@ double** confusionMatrix(const int* truth, const int* predicted, const size_t n,
     if (!truth || !predicted)
         return NULL;
 
-    int *uniqueTrue, *uniquePred;
-    size_t unqTrueSz, unqPredSz;
+    int *uniqueTrue;
+    size_t unqTrueSz;
     findDistinct_i(truth, n, &uniqueTrue, &unqTrueSz);
-    findDistinct_i(predicted, n, &uniquePred, &unqPredSz);
-    if (!uniqueTrue || !uniquePred) {
-        LOG_ERROR("Unable to get unique values from truth or predicted values");
+    if (!uniqueTrue) {
+        LOG_ERROR("Unable to get unique values from truth values");
         return NULL;
     }
-    if (unqTrueSz != unqPredSz)
-        LOG_WARNING("Truth and Predicted arrays have different unique values");
-
     // Initialize confusion matrix
     *outRows = unqTrueSz;
-    *outCols = unqPredSz;
+    *outCols = unqTrueSz;
     double** cm = malloc(sizeof(double*) * *outRows);
     if (!cm) {
         LOG_ERROR("malloc failed for confusion matrix");
-        free(uniqueTrue); free(uniquePred);
+        free(uniqueTrue);
         return NULL;
     }
     for (size_t i = 0; i < *outRows; i++) {
@@ -272,7 +268,7 @@ double** confusionMatrix(const int* truth, const int* predicted, const size_t n,
             LOG_ERROR("calloc failed for initializing confusion matrix columns");
             for (size_t j = 0; j < i; j++)
                 free(cm[j]);
-            free(cm); free(uniqueTrue); free(uniquePred);
+            free(cm); free(uniqueTrue);
             return NULL;
         }
     }
@@ -288,18 +284,17 @@ double** confusionMatrix(const int* truth, const int* predicted, const size_t n,
         }
         const size_t trueIdx = inTrue - uniqueTrue;
 
-        int* inPred = bsearch(&predicted[dataI], uniquePred, unqPredSz, sizeof(int), _cmpAsc);
+        int* inPred = bsearch(&predicted[dataI], uniqueTrue, unqTrueSz, sizeof(int), _cmpAsc);
         if (!inPred) {
-            LOG_ERROR("bsearch failed for finding value in uniquePred:");
-            printf("ID: %lu, truth[dataI]=%d\n", dataI, predicted[dataI]);
+            LOG_ERROR("bsearch failed for finding value in uniqueTrue:");
+            printf("ID: %lu, predicted[dataI]=%d\n", dataI, predicted[dataI]);
             continue;
         }
-        const size_t predIdx = inPred - uniquePred;
+        const size_t predIdx = inPred - uniqueTrue;
         cm[trueIdx][predIdx]++;
     }
 
     free(uniqueTrue);
-    free(uniquePred);
     return cm;
 }
 
@@ -314,22 +309,19 @@ void showConfusionMatrix(const int* truth, const int* predicted, const size_t n)
         return;
     }
 
-    int *uniqueTrue, *uniquePred;
-    size_t unqTrueSz, unqPredSz;
+    int *uniqueTrue;
+    size_t unqTrueSz;
     findDistinct_i(truth, n, &uniqueTrue, &unqTrueSz);
-    findDistinct_i(predicted, n, &uniquePred, &unqPredSz);
-    if (!uniqueTrue || !uniquePred) {
-        LOG_ERROR("Unable to get unique values from truth or predicted values");
+    if (!uniqueTrue) {
+        LOG_ERROR("Unable to get unique values from truth values");
         return;
     }
-    if (unqTrueSz != unqPredSz)
-        LOG_WARNING("Truth and Predicted arrays have different unique values");
 
     // Print columns values first (space of 1 tab between start and between them)
     printf("\t\tPredicted\n");
     printf("True\t");
-    for (size_t i = 0; i < unqPredSz; i++)
-        printf("%d\t\t", uniquePred[i]);
+    for (size_t i = 0; i < unqTrueSz; i++)
+        printf("%d\t\t", uniqueTrue[i]);
     putchar('\n');
     for (size_t i = 0; i < cmRows; i++) {
         printf("%d\t", uniqueTrue[i]);
@@ -338,7 +330,7 @@ void showConfusionMatrix(const int* truth, const int* predicted, const size_t n)
         putchar('\n');
     }
 
-    free(uniqueTrue); free(uniquePred);
+    free(uniqueTrue);
     for (size_t i = 0; i < cmRows; i++)
         free(cm[i]);
     free(cm);

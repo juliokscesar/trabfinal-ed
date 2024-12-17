@@ -11,3 +11,4 @@ test.dat
 .idea/
 build/
 cmake-build-debug/
+.cache
