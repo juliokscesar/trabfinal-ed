@@ -51,6 +51,8 @@ Usage: ./proj [-h] [-d data_file] [-m] [-c config_file] [-w] [-s steps] [-p]
 => [-w]: wait for user input before advancing to next sections.
 => [-s steps]: predict next 'steps' instead of what's in the configuration file.
 => [-p]: print details from loaded data. Useful for making sure the program has loaded things correctly.
+=> [-o order]: use 'order' for the system, instead of what's set in the configuration file.
+
 !! All file paths must be relative to the program's executable file.
 !! You can change the default data file path in the config file. If no '-c config_file' is provided, it uses 'config.ini' as default.
 ```
@@ -61,9 +63,10 @@ números inteiros até a entrada de um caractere não numérico. Se `-m` e `-d` 
 - `-c config_file`: especifica o caminho do arquivo INI de configuração.
 - `-w`: o programa aguarda a confirmação do usuário antes de prosseguir para as próximas etapas, ou seja, entre a utilização
 da Cadeia de Markov Padrão, do Grafo de Markov (opcional) e da Rede de Markov (opcional). É útil para ler separadamente cada informação.
-- `-s steps`: específica  número de passos `steps` para prever após as etapas de treinamento e teste.
+- `-s steps`: específica o número de passos `steps` para prever após as etapas de treinamento e teste.
 - `-p`: exibe detalhes sobre os dados lidos, incluindo os próprios dados, valores únicos extraídos, divisão de treino,
 validação e teste.
+- `-o order`: especifica a ordem que deve ser utilizada para as cadeias de Markov. Se esta flag for passada, ignora o valor que está setado no arquvio `config.ini`.
 
 ## Descrição
 Este projeto tem como objetivo gerar um modelo simples e eficiente na análise e previsão de séries binárias temporais, 
