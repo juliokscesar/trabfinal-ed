@@ -43,7 +43,7 @@ Após a compilação, a flag `-h` na execução do programa exibe uma mensagem d
 ---------------------------- TIME SERIES FORECAST WITH MARKOV CHAINS ----------------------------
 -------------------------------------------------------------------------------------------------
 
-Usage: ./proj [-h] [-d data_file] [-m] [-c config_file] [-w] [-s steps] [-p]
+Usage: ./proj [-h] [-d data_file] [-m] [-c config_file] [-w] [-s steps] [-p] [-o order]
 => [-h]: show this message and exit.
 => [-d data_file]: use data file in path data_file.
 => [-m]: insert data manually value by value. If this flag and '-d data_file' is provided, ignore the data file.
