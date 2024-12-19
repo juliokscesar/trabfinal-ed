@@ -78,17 +78,17 @@ def save_series(file: str, data):
 def main():
     pat = random_series([0,1], [0.53,0.47], 150)
     # pat = [0,0,1]
-    gen = osc_series(5000, pat)
+    # gen = osc_series(5000, pat)
     # gen = random_series([0,1], [0.3, 0.7], 2000)
-    # gen = generate_binary_time_series(
-    #     length=3000,
-    #     p_initial=0.70,
-    #     noise_prob=0.04,
-    #     trend_prob=0.01,
-    #     periodic_pattern=None,
-    #     burst_prob=0.1,
-    #     markov_order=1,
-    # )
+    gen = generate_binary_time_series(
+        length=1000,
+        p_initial=0.70,
+        noise_prob=0.04,
+        trend_prob=0.01,
+        periodic_pattern=None,
+        burst_prob=0.1,
+        markov_order=1,
+    )
     save_series("test.dat", gen)
 
 if __name__ == "__main__":
