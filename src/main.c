@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <asm-generic/errno-base.h>
 
 #include "config.h"
 #include "markov.h"

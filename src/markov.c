@@ -265,7 +265,7 @@ void markovPredict(const TransitionMatrix* m, const uint steps, const int* data,
     lli stateID = markovIdState(m->state, lastState);
     if (stateID == -1) {
         LOG_ERROR("Unable to identify state by id: ");
-        printf("%ld\n", stateID);
+        printf("%lld\n", stateID);
         free(lastState);
         return;
     }
@@ -308,7 +308,7 @@ int markovPredictNext(const TransitionMatrix* m, const int* data, const size_t n
     lli stateID = markovIdState(m->state, data + (n - m->state->order));
     if (stateID == -1) {
         LOG_ERROR("Unable to identify state");
-        printf("ID: %ld, State: ", stateID);
+        printf("ID: %lld, State: ", stateID);
         printArr_i(data+n-m->state->order, m->state->order);
         return INT_MAX;
     }
