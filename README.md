@@ -2,7 +2,7 @@
 Trabalho final realizado para a disciplina de Estrutura de Dados.
 
 ## Como compilar e rodar
-Este projeto utiliza CMake na configuração da compilação, e recomenda-se que se use Linux.
+Este projeto utiliza CMake ou Makefile na configuração da compilação, e recomenda-se que se use Linux.
 
 Basta clonar este projeto e rodar o script `build.sh`, que irá criar uma pasta chamada 'build' com um executável 'proj'. 
 Comandos completos:

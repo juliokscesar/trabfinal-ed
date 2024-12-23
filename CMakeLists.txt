@@ -8,8 +8,8 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 if (NOT MSVC)
-   set(CMAKE_CXX_FLAGS_DEBUG "-g")
-   set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -Wall -Wextra")
+   set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -Wextra")
 endif()
 
 include_directories(
